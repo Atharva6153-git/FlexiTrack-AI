@@ -2,5 +2,8 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "Backend for FlexiTrack AI",
-  "type": "commonjs"
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  }
 }
