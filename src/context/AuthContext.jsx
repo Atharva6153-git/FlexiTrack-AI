@@ -25,10 +25,25 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser ?? false);
+      if (firebaseUser) {
+        // Enforce 24-hour session: check when they logged in
+        const loginTime = localStorage.getItem('ft_login_time');
+        const now = Date.now();
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+        if (loginTime && now - parseInt(loginTime, 10) > TWENTY_FOUR_HOURS) {
+          // Session expired — sign out silently
+          signOut(auth);
+          localStorage.removeItem('ft_login_time');
+          setUser(false);
+        } else {
+          setUser(firebaseUser);
+        }
+      } else {
+        setUser(false);
+      }
       setLoading(false);
     }, (error) => {
-      // Auth not configured yet — treat as logged out, don't crash
       console.error('[AuthContext] onAuthStateChanged error:', error.code, error.message);
       setUser(false);
       setLoading(false);
@@ -36,21 +51,28 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const loginWithEmail = (email, password) =>
-    signInWithEmailAndPassword(auth, email, password);
+  const loginWithEmail = (email, password) => {
+    localStorage.setItem('ft_login_time', Date.now().toString());
+    return signInWithEmailAndPassword(auth, email, password);
+  };
 
   const registerWithEmail = async (name, email, password) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
-    // Attach display name immediately so navbar can show it
     await updateProfile(credential.user, { displayName: name });
-    // Force a re-read so the context state has the displayName
+    localStorage.setItem('ft_login_time', Date.now().toString());
     setUser({ ...credential.user, displayName: name });
     return credential;
   };
 
-  const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
+  const loginWithGoogle = () => {
+    localStorage.setItem('ft_login_time', Date.now().toString());
+    return signInWithPopup(auth, googleProvider);
+  };
 
-  const logout = () => signOut(auth);
+  const logout = () => {
+    localStorage.removeItem('ft_login_time');
+    return signOut(auth);
+  };
 
   const value = {
     user,
