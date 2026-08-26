@@ -26,7 +26,7 @@ const Login = () => {
   // Redirect back to where the user was trying to go, or /dashboard
   const from = location.state?.from?.pathname ?? '/dashboard';
 
-  const [tab, setTab]             = useState('login'); // 'login' | 'signup'
+  const [tab, setTab]             = useState(location.state?.tab === 'signup' ? 'signup' : 'login');
   const [name, setName]           = useState('');
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');

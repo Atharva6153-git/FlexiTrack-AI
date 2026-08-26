@@ -20,27 +20,31 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public — login page has its own minimal header, no RootLayout */}
+        {/* ── Public routes ─────────────────────────────────────────────── */}
+        {/* Landing page — visible to everyone, has its own public navbar   */}
+        <Route path="/" element={<Home />} />
+
+        {/* Login / sign-up page                                            */}
         <Route path="/login" element={<Login />} />
 
-        {/* All app routes share RootLayout and require authentication */}
+        {/* ── Protected app routes ──────────────────────────────────────── */}
+        {/* All share RootLayout (sticky nav + user menu + footer).         */}
+        {/* Unauthenticated users are redirected to /login.                 */}
         <Route
-          path="/"
           element={
             <ProtectedRoute>
               <RootLayout />
             </ProtectedRoute>
           }
         >
-          <Route index element={<Home />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="track" element={<TrackSession />} />
-          <Route path="history" element={<History />} />
+          <Route path="track"     element={<TrackSession />} />
+          <Route path="history"   element={<History />} />
           <Route path="therapist" element={<TherapistPortal />} />
-
-          {/* 404 Catch-all */}
-          <Route path="*" element={<NotFound />} />
         </Route>
+
+        {/* 404 catch-all */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
