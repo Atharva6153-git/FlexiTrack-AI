@@ -33,6 +33,7 @@ const Login = () => {
   const [showPass, setShowPass]   = useState(false);
   const [error, setError]         = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const reset = () => { setError(''); setName(''); setEmail(''); setPassword(''); };
 

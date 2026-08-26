@@ -101,9 +101,17 @@ export default function PoseEngine({
   }, [onResults]);
 
   useEffect(() => {
-    // Guard: only run once, even under StrictMode double-invoke
+    // `started` is scoped to this effect closure — it is NOT reset by the
+    // cleanup function, so React Strict Mode's double-invoke cannot cause a
+    // second startCamera() call from the same effect run.
+    // `hasStarted` ref guards against a *new* effect run on a re-mount.
     if (hasStarted.current) return;
     hasStarted.current = true;
+
+    // Local flag: marks that THIS closure's startCamera has already been
+    // invoked. Even if the effect fires twice (Strict Mode), the second
+    // invocation exits here before reaching startCamera().
+    let started = false;
 
     let animationFrameId = null;
     let pose = null;
@@ -133,16 +141,20 @@ export default function PoseEngine({
             );
             await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
           } else {
-            // Non-retryable error, or we've exhausted attempts — rethrow
+            // Non-retryable error, or exhausted attempts — rethrow immediately
             throw err;
           }
         }
       }
-      // Should be unreachable, but satisfy the linter
       throw lastErr;
     };
 
     const startCamera = async () => {
+      // Secondary closure-level guard: guarantees startCamera() body runs
+      // exactly once even if called redundantly within the same effect closure.
+      if (started) return;
+      started = true;
+
       console.log('[PoseEngine] startCamera() called');
       const globals = getPoseGlobals();
 
@@ -204,7 +216,10 @@ export default function PoseEngine({
         streamRef.current = null;
       }
       if (pose) pose.close();
-      hasStarted.current = false;
+      // Do NOT reset hasStarted.current here — resetting it in cleanup is
+      // what allowed Strict Mode's double-invoke to bypass the guard and call
+      // startCamera() multiple times. The ref stays true for the component's
+      // full lifetime; it is initialised false only on the first render.
     };
   }, []); // empty deps — camera mounts/unmounts exactly once
 

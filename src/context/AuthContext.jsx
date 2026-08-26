@@ -27,6 +27,11 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser ?? false);
       setLoading(false);
+    }, (error) => {
+      // Auth not configured yet — treat as logged out, don't crash
+      console.error('[AuthContext] onAuthStateChanged error:', error.code, error.message);
+      setUser(false);
+      setLoading(false);
     });
     return unsubscribe;
   }, []);

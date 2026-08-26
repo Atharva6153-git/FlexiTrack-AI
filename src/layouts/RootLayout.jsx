@@ -27,10 +27,10 @@ const RootLayout = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
 
-            {/* Brand */}
+            {/* Brand — goes to /dashboard for logged-in users, not / */}
             <div className="flex-shrink-0 flex items-center">
               <Link
-                to="/"
+                to="/dashboard"
                 className="text-2xl font-extrabold text-blue-700 tracking-tight hover:text-blue-800 transition-colors"
               >
                 FlexiTrack AI
