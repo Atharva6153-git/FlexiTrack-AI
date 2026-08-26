@@ -1,20 +1,13 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
-const Session = require('./models/Session');
-mongoose.connect(process.env.MONGO_URI).then(async () => {
-  const stats = await Session.aggregate([
-    { $match: { patientId: 'patient_123' } },
-    {
-      $group: {
-        _id: { $dateTrunc: { date: '$createdAt', unit: 'day' } },
-        avgFormAccuracyScore: { $avg: '$formAccuracyScore' },
-        avgMaxFlexionAngle: { $avg: '$maxFlexionAngle' },
-        totalReps: { $sum: '$totalReps' },
-        sessionCount: { $sum: 1 }
-      }
-    },
-    { $sort: { '_id': 1 } }
-  ]);
-  console.log(JSON.stringify(stats, null, 2));
-  process.exit(0);
-}).catch(console.error);
+const axios = require('axios');
+
+async function testStatsEndpoint() {
+  console.log('Testing GET /api/sessions/patient/patient_123/stats');
+  try {
+    const res = await axios.get('http://localhost:5000/api/sessions/patient/patient_123/stats');
+    console.log('Output:', JSON.stringify(res.data, null, 2));
+  } catch (error) {
+    console.error('Error testing endpoint:', error.response?.data || error.message);
+  }
+}
+
+testStatsEndpoint();
