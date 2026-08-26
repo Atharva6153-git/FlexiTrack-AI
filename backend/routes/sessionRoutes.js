@@ -16,6 +16,7 @@ router.post('/', async (req, res) => {
       maxFlexionAngle,
       formAccuracyScore,
       durationSeconds,
+      createdAt,
     } = req.body;
 
     // Validate required fields
@@ -32,6 +33,8 @@ router.post('/', async (req, res) => {
       maxFlexionAngle,
       formAccuracyScore,
       durationSeconds,
+      // Allow explicit createdAt for simulation/backfill; falls back to Date.now
+      ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
     });
 
     const savedSession = await newSession.save();
@@ -134,6 +137,19 @@ router.get('/analytics/:patientId', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/sessions/:id
+// Remove a single session by its MongoDB _id
+router.delete('/:id', async (req, res) => {
+  try {
+    const deleted = await Session.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Session not found' });
+    res.status(200).json({ message: 'Session deleted', id: req.params.id });
+  } catch (error) {
+    console.error('Error deleting session:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

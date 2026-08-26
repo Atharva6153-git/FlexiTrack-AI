@@ -20,8 +20,8 @@ const History = () => {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/sessions/patient/${patientId}`);
-        setSessions(res.data);
+        const sessionsRes = await axios.get(`${API_URL}/api/sessions/patient/${patientId}`);
+        setSessions(sessionsRes.data);
       } catch (err) {
         console.error('Failed to load history from backend.', err);
         setSessions([]);
@@ -38,23 +38,38 @@ const History = () => {
     return sessions.filter(s => s.exerciseType === filter);
   }, [sessions, filter]);
 
-  // Aggregate Metrics
+  // Aggregate Metrics — computed from raw sessions so they respect the active filter
   const totalSessions = filteredSessions.length;
-  const peakAngle = totalSessions > 0 ? Math.max(...filteredSessions.map(s => s.maxFlexionAngle || 0)) : 0;
-  const avgFormScore = totalSessions > 0 
-    ? Math.round(filteredSessions.reduce((acc, s) => acc + (s.formAccuracyScore || 0), 0) / totalSessions) 
+  const peakAngle = filteredSessions.length > 0
+    ? Math.max(...filteredSessions.map(s => s.maxFlexionAngle || 0))
     : 0;
 
-  // Chart Data Preparation
+  // Weighted average: sum all scores / count of sessions that have a score
+  const sessionsWithScore = filteredSessions.filter(s => s.formAccuracyScore != null);
+  const avgFormScore = sessionsWithScore.length > 0
+    ? Math.round(sessionsWithScore.reduce((acc, s) => acc + s.formAccuracyScore, 0) / sessionsWithScore.length)
+    : 0;
+
+  // Chart Data — group filtered sessions by day so filter buttons also update charts
   const chartData = useMemo(() => {
-    // Sort chronologically for charts (oldest to newest)
-    const sorted = [...filteredSessions].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    return sorted.map(s => ({
-      date: new Date(s.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      maxAngle: s.maxFlexionAngle,
-      reps: s.totalReps,
-      score: s.formAccuracyScore
-    }));
+    // Group by calendar day
+    const byDay = {};
+    filteredSessions.forEach(s => {
+      const day = new Date(s.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      if (!byDay[day]) byDay[day] = { maxAngles: [], reps: 0, scores: [], rawDate: new Date(s.createdAt) };
+      if (s.maxFlexionAngle != null) byDay[day].maxAngles.push(s.maxFlexionAngle);
+      byDay[day].reps += s.totalReps || 0;
+      if (s.formAccuracyScore != null) byDay[day].scores.push(s.formAccuracyScore);
+    });
+
+    return Object.entries(byDay)
+      .sort((a, b) => a[1].rawDate - b[1].rawDate)
+      .map(([day, d]) => ({
+        date: day,
+        maxAngle: d.maxAngles.length > 0 ? Math.round(d.maxAngles.reduce((a, v) => a + v, 0) / d.maxAngles.length) : 0,
+        reps: d.reps,
+        score: d.scores.length > 0 ? Math.round(d.scores.reduce((a, v) => a + v, 0) / d.scores.length) : 0,
+      }));
   }, [filteredSessions]);
 
   const formatDuration = (seconds) => {

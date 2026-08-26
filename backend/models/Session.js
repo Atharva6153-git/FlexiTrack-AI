@@ -34,6 +34,9 @@ const sessionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+}, {
+  // Allow createdAt to be set explicitly (e.g. for simulation / backfill)
+  timestamps: false,
 });
 
 module.exports = mongoose.model('Session', sessionSchema);

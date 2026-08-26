@@ -4,6 +4,7 @@ const prescriptionSchema = new mongoose.Schema({
   exerciseType: { type: String, required: true },
   targetReps: { type: Number, required: true },
   targetSets: { type: Number, default: 3 },
+  targetFrequency: { type: Number, default: 3 }, // sessions per week
   assignedAt: { type: Date, default: Date.now }
 }, { _id: false });
 
