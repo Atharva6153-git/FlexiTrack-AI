@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const sessionRoutes = require('./routes/sessionRoutes');
+const patientRoutes = require('./routes/patientRoutes');
 
 // Initialize express app
 const app = express();
@@ -18,6 +19,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/patients', patientRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {

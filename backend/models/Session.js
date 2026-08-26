@@ -1,10 +1,8 @@
 const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
 
-const SessionSchema = new Schema({
+const sessionSchema = new mongoose.Schema({
   patientId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
+    type: String, // 👈 Changed from Schema.Types.ObjectId to String
     required: true,
   },
   exerciseType: {
@@ -35,7 +33,7 @@ const SessionSchema = new Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-  }
+  },
 });
 
-module.exports = mongoose.model('Session', SessionSchema);
+module.exports = mongoose.model('Session', sessionSchema);

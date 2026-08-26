@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { Activity, Play, CheckCircle2, TrendingUp, Calendar, ArrowRight, ShieldCheck, Flame } from 'lucide-react';
 
@@ -6,12 +7,29 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [selectedExercise, setSelectedExercise] = useState('BICEP_CURL');
 
-  // Hardcoded mock data for the dashboard layout showcase
-  const mockRecentSessions = [
-    { id: 1, type: 'Squat / Knee Flexion', date: 'Today, 8:45 AM', reps: '12/12', score: 96 },
-    { id: 2, type: 'Bicep Curl / Elbow Flexion', date: 'Yesterday, 9:15 AM', reps: '30/30', score: 92 },
-    { id: 3, type: 'Knee Extension', date: 'Aug 24, 7:30 AM', reps: '24/24', score: 89 },
-  ];
+  const patientId = localStorage.getItem('patientId') || 'patient_123';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  const [recentSessions, setRecentSessions] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const patientRes = await axios.get(`${API_URL}/api/patients/${patientId}`);
+        setPrescriptions(patientRes.data.prescriptions || []);
+        if (patientRes.data.prescriptions && patientRes.data.prescriptions.length > 0) {
+           setSelectedExercise(patientRes.data.prescriptions[0].exerciseType);
+        }
+
+        const sessionRes = await axios.get(`${API_URL}/api/sessions/patient/${patientId}`);
+        setRecentSessions(sessionRes.data.slice(0, 3));
+      } catch (err) {
+        console.error("Error fetching dashboard data", err);
+      }
+    };
+    fetchData();
+  }, [patientId, API_URL]);
 
   const handleLaunchCamera = () => {
     // Navigate to the live tracker, theoretically passing the selected exercise via React Router state
@@ -103,47 +121,25 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <button 
-            onClick={() => setSelectedExercise('BICEP_CURL')}
-            className={`p-5 rounded-xl border-2 text-left transition-all ${selectedExercise === 'BICEP_CURL' ? 'border-[#0D9488] bg-teal-50 shadow-sm transform -translate-y-0.5' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className={`font-bold ${selectedExercise === 'BICEP_CURL' ? 'text-[#0D9488]' : 'text-slate-700'}`}>Bicep Curl</h3>
-              {selectedExercise === 'BICEP_CURL' && <CheckCircle2 size={20} className="text-[#0D9488]" />}
-            </div>
-            <p className="text-slate-500 text-sm">Elbow Flexion</p>
-            <div className="mt-4 inline-flex px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
-              Target: 3 sets x 10 reps
-            </div>
-          </button>
-
-          <button 
-            onClick={() => setSelectedExercise('SQUAT')}
-            className={`p-5 rounded-xl border-2 text-left transition-all ${selectedExercise === 'SQUAT' ? 'border-[#0D9488] bg-teal-50 shadow-sm transform -translate-y-0.5' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className={`font-bold ${selectedExercise === 'SQUAT' ? 'text-[#0D9488]' : 'text-slate-700'}`}>Squat</h3>
-              {selectedExercise === 'SQUAT' && <CheckCircle2 size={20} className="text-[#0D9488]" />}
-            </div>
-            <p className="text-slate-500 text-sm">Knee & Hip Flexion</p>
-            <div className="mt-4 inline-flex px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
-              Target: 2 sets x 12 reps
-            </div>
-          </button>
-
-          <button 
-            onClick={() => setSelectedExercise('KNEE_EXTENSION')}
-            className={`p-5 rounded-xl border-2 text-left transition-all ${selectedExercise === 'KNEE_EXTENSION' ? 'border-[#0D9488] bg-teal-50 shadow-sm transform -translate-y-0.5' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className={`font-bold ${selectedExercise === 'KNEE_EXTENSION' ? 'text-[#0D9488]' : 'text-slate-700'}`}>Knee Extension</h3>
-              {selectedExercise === 'KNEE_EXTENSION' && <CheckCircle2 size={20} className="text-[#0D9488]" />}
-            </div>
-            <p className="text-slate-500 text-sm">Quad Strengthening</p>
-            <div className="mt-4 inline-flex px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
-              Target: 3 sets x 8 reps
-            </div>
-          </button>
+          {prescriptions.map((presc) => (
+            <button 
+              key={presc.exerciseType}
+              onClick={() => setSelectedExercise(presc.exerciseType)}
+              className={`p-5 rounded-xl border-2 text-left transition-all ${selectedExercise === presc.exerciseType ? 'border-[#0D9488] bg-teal-50 shadow-sm transform -translate-y-0.5' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className={`font-bold ${selectedExercise === presc.exerciseType ? 'text-[#0D9488]' : 'text-slate-700'}`}>
+                  {presc.exerciseType.replace('_', ' ')}
+                </h3>
+                {selectedExercise === presc.exerciseType && <CheckCircle2 size={20} className="text-[#0D9488]" />}
+              </div>
+              <p className="text-slate-500 text-sm">Assigned Exercise</p>
+              <div className="mt-4 inline-flex px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
+                Target: {presc.targetSets} sets x {presc.targetReps} reps
+              </div>
+            </button>
+          ))}
+          {prescriptions.length === 0 && <p className="text-slate-500 text-sm">No prescriptions assigned yet.</p>}
         </div>
       </section>
 
@@ -209,20 +205,21 @@ const Dashboard = () => {
           </div>
           
           <div className="divide-y divide-slate-100 flex-grow bg-white">
-            {mockRecentSessions.map(session => (
-              <div key={session.id} className="p-6 hover:bg-slate-50 transition-colors cursor-pointer">
+            {recentSessions.map(session => (
+              <div key={session._id} className="p-6 hover:bg-slate-50 transition-colors cursor-pointer">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-slate-800">{session.type}</h4>
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${session.score >= 90 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {session.score}% Form
+                  <h4 className="font-bold text-slate-800">{session.exerciseType.replace('_', ' ')}</h4>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${session.formAccuracyScore >= 90 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {session.formAccuracyScore}% Form
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
-                  <span className="flex items-center gap-1.5"><Calendar size={14} className="text-slate-400" /> {session.date}</span>
-                  <span className="flex items-center gap-1.5"><Activity size={14} className="text-slate-400" /> {session.reps} Reps</span>
+                  <span className="flex items-center gap-1.5"><Calendar size={14} className="text-slate-400" /> {new Date(session.createdAt).toLocaleDateString()}</span>
+                  <span className="flex items-center gap-1.5"><Activity size={14} className="text-slate-400" /> {session.totalReps} Reps</span>
                 </div>
               </div>
             ))}
+            {recentSessions.length === 0 && <div className="p-6 text-center text-slate-500">No recent sessions.</div>}
           </div>
         </div>
         

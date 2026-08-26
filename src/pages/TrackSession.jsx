@@ -11,7 +11,9 @@ const TrackSession = () => {
   
   const defaultExercise = location.state?.defaultExercise || 'BICEP_CURL';
   const [selectedExercise, setSelectedExercise] = useState(defaultExercise);
-  const [patientId] = useState('patient_123'); // Demo ID
+  const patientId = localStorage.getItem('patientId') || 'patient_123';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const [prescriptions, setPrescriptions] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -41,6 +43,27 @@ const TrackSession = () => {
     }
     return () => clearInterval(timer);
   }, [isSessionActive]);
+
+  // Fetch Prescriptions
+  useEffect(() => {
+    const fetchPrescriptions = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/patients/${patientId}`);
+        if (res.data && res.data.prescriptions) {
+          setPrescriptions(res.data.prescriptions);
+          // If defaultExercise wasn't set by state and we have prescriptions, select the first one
+          if (!location.state?.defaultExercise && res.data.prescriptions.length > 0) {
+            const firstExercise = res.data.prescriptions[0];
+            setSelectedExercise(firstExercise.exerciseType);
+            setSessionMetrics(prev => ({ ...prev, targetReps: firstExercise.targetReps }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch prescriptions:", err);
+      }
+    };
+    fetchPrescriptions();
+  }, [patientId, API_URL, location.state]);
 
   const handlePoseUpdate = useCallback(({ angle, confidence, landmarks }) => {
     if (!isSessionActive) return;
@@ -117,7 +140,7 @@ const TrackSession = () => {
   const handleFinishSession = async () => {
     setIsSessionActive(false);
     try {
-      await axios.post('http://localhost:5000/api/sessions', {
+      await axios.post(`${API_URL}/api/sessions`, {
         patientId,
         exerciseType: selectedExercise,
         totalReps: sessionMetrics.repCount,
@@ -172,13 +195,29 @@ const TrackSession = () => {
         <div className="flex items-center gap-4">
           <select 
             value={selectedExercise}
-            onChange={(e) => setSelectedExercise(e.target.value)}
+            onChange={(e) => {
+              setSelectedExercise(e.target.value);
+              const presc = prescriptions.find(p => p.exerciseType === e.target.value);
+              if (presc) {
+                setSessionMetrics(prev => ({ ...prev, targetReps: presc.targetReps }));
+              }
+            }}
             disabled={isSessionActive}
             className="clinical-card px-4 py-2.5 text-sm font-bold text-[#0D9488] outline-none cursor-pointer disabled:opacity-50"
           >
-            <option value="BICEP_CURL">Bicep Curl</option>
-            <option value="SQUAT">Squat</option>
-            <option value="KNEE_EXTENSION">Knee Extension</option>
+            {prescriptions.length > 0 ? (
+              prescriptions.map(p => (
+                <option key={p.exerciseType} value={p.exerciseType}>
+                  {p.exerciseType.replace('_', ' ')}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="BICEP_CURL">Bicep Curl</option>
+                <option value="SQUAT">Squat</option>
+                <option value="KNEE_EXTENSION">Knee Extension</option>
+              </>
+            )}
           </select>
 
           <button 

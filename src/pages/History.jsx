@@ -4,14 +4,6 @@ import { Link } from 'react-router-dom';
 import { TrendingUp, BarChart3, Calendar, Filter, Clock, Award, Activity, Play } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const MOCK_SESSIONS = [
-  { _id: '1', exerciseType: 'SQUAT', totalReps: 12, targetReps: 12, maxFlexionAngle: 110, formAccuracyScore: 94, durationSeconds: 45, createdAt: new Date(Date.now() - 86400000 * 5).toISOString() },
-  { _id: '2', exerciseType: 'BICEP_CURL', totalReps: 10, targetReps: 10, maxFlexionAngle: 145, formAccuracyScore: 88, durationSeconds: 60, createdAt: new Date(Date.now() - 86400000 * 4).toISOString() },
-  { _id: '3', exerciseType: 'KNEE_EXTENSION', totalReps: 15, targetReps: 15, maxFlexionAngle: 160, formAccuracyScore: 92, durationSeconds: 50, createdAt: new Date(Date.now() - 86400000 * 2).toISOString() },
-  { _id: '4', exerciseType: 'SQUAT', totalReps: 12, targetReps: 12, maxFlexionAngle: 115, formAccuracyScore: 97, durationSeconds: 48, createdAt: new Date(Date.now() - 86400000 * 1).toISOString() },
-  { _id: '5', exerciseType: 'BICEP_CURL', totalReps: 15, targetReps: 15, maxFlexionAngle: 150, formAccuracyScore: 95, durationSeconds: 65, createdAt: new Date(Date.now() - 86400000 * 0.5).toISOString() },
-];
-
 const EXERCISE_LABELS = {
   BICEP_CURL: 'Bicep Curl',
   SQUAT: 'Squat',
@@ -22,23 +14,23 @@ const History = () => {
   const [sessions, setSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('ALL'); // 'ALL', 'BICEP_CURL', 'SQUAT', 'KNEE_EXTENSION'
-  const patientId = 'patient_123';
+  const patientId = localStorage.getItem('patientId') || 'patient_123';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/sessions/patient/${patientId}`);
-        // Fallback to mock data if DB is empty to demonstrate the UI
-        setSessions(res.data.length > 0 ? res.data : MOCK_SESSIONS);
+        const res = await axios.get(`${API_URL}/api/sessions/patient/${patientId}`);
+        setSessions(res.data);
       } catch (err) {
-        console.error('Failed to load history from backend, using mock data.', err);
-        setSessions(MOCK_SESSIONS);
+        console.error('Failed to load history from backend.', err);
+        setSessions([]);
       } finally {
         setIsLoading(false);
       }
     };
     fetchHistory();
-  }, []);
+  }, [patientId, API_URL]);
 
   // Filtered sessions
   const filteredSessions = useMemo(() => {

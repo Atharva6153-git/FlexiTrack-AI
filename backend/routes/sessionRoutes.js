@@ -42,15 +42,44 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/sessions/patient/:patientId/stats
+// Fetch aggregated stats for a patient, grouped by date
+router.get('/patient/:patientId/stats', async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const stats = await Session.aggregate([
+      { $match: { patientId: patientId } },
+      {
+        $group: {
+          _id: {
+            $dateTrunc: {
+              date: "$createdAt",
+              unit: "day"
+            }
+          },
+          avgFormAccuracyScore: { $avg: "$formAccuracyScore" },
+          avgMaxFlexionAngle: { $avg: "$maxFlexionAngle" },
+          totalReps: { $sum: "$totalReps" },
+          sessionCount: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } }
+    ]);
+
+    res.status(200).json(stats);
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/sessions/patient/:patientId
 // Fetch all workout sessions for a given patient ID, sorted by createdAt descending
 router.get('/patient/:patientId', async (req, res) => {
   try {
     const { patientId } = req.params;
-    
-    if (!mongoose.Types.ObjectId.isValid(patientId)) {
-      return res.status(400).json({ error: 'Invalid patientId.' });
-    }
+
 
     const sessions = await Session.find({ patientId }).sort({ createdAt: -1 });
     res.status(200).json(sessions);
@@ -66,9 +95,6 @@ router.get('/analytics/:patientId', async (req, res) => {
   try {
     const { patientId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(patientId)) {
-      return res.status(400).json({ error: 'Invalid patientId.' });
-    }
 
     // We sort ascending by createdAt for the trend array to be chronological
     const sessions = await Session.find({ patientId }).sort({ createdAt: 1 });
