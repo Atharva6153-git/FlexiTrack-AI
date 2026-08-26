@@ -6,6 +6,7 @@ import RootLayout from './layouts/RootLayout';
 
 // Auth
 import ProtectedRoute from './components/ProtectedRoute';
+import RoleProtectedRoute from './components/RoleProtectedRoute';
 
 // Pages
 import Home from './pages/Home';
@@ -40,7 +41,14 @@ const App = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="track"     element={<TrackSession />} />
           <Route path="history"   element={<History />} />
-          <Route path="therapist" element={<TherapistPortal />} />
+          <Route
+            path="therapist"
+            element={
+              <RoleProtectedRoute allowedRole="therapist">
+                <TherapistPortal />
+              </RoleProtectedRoute>
+            }
+          />
         </Route>
 
         {/* 404 catch-all */}

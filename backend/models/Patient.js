@@ -11,6 +11,7 @@ const prescriptionSchema = new mongoose.Schema({
 const patientSchema = new mongoose.Schema({
   patientId: { type: String, required: true, unique: true }, // matches Session.patientId
   name: { type: String, required: true },
+  role: { type: String, enum: ['patient', 'therapist'], default: 'patient' },
   therapistId: { type: String, required: true },
   prescriptions: [prescriptionSchema],
   createdAt: { type: Date, default: Date.now }
