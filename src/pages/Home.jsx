@@ -23,10 +23,10 @@ const Home = () => {
         
         <div className="flex flex-col sm:flex-row gap-4 pt-6">
           <Link 
-            to="/track" 
+            to="/dashboard" 
             className="flex items-center justify-center gap-2 bg-[#0F766E] hover:bg-[#115E59] text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
           >
-            Start Workout Session
+            Go to Dashboard
             <ArrowRight size={20} />
           </Link>
           <Link 

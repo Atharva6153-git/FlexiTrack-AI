@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { Activity, Play, CheckCircle2, TrendingUp, Calendar, ArrowRight, ShieldCheck, Flame } from 'lucide-react';
+import { Activity, CheckCircle2, TrendingUp, Calendar, ArrowRight, ShieldCheck, Flame } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedExercise, setSelectedExercise] = useState('BICEP_CURL');
 
   const patientId = localStorage.getItem('patientId') || 'patient_123';
@@ -12,6 +14,9 @@ const Dashboard = () => {
 
   const [recentSessions, setRecentSessions] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
+
+  // Display name: prefer Firebase displayName, fall back to email prefix
+  const displayName = user?.displayName ?? user?.email?.split('@')[0] ?? 'there';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,7 +37,6 @@ const Dashboard = () => {
   }, [patientId, API_URL]);
 
   const handleLaunchCamera = () => {
-    // Navigate to the live tracker, theoretically passing the selected exercise via React Router state
     navigate('/track', { state: { defaultExercise: selectedExercise } });
   };
 
@@ -43,7 +47,9 @@ const Dashboard = () => {
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Welcome back, John 👋</h1>
+            <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">
+              Welcome back, {displayName} 👋
+            </h1>
             <span className="badge-teal flex items-center gap-1.5 border border-teal-200">
               <ShieldCheck size={14} />
               Therapist Sync Active
@@ -51,14 +57,6 @@ const Dashboard = () => {
           </div>
           <p className="text-slate-500 text-lg">Here is your rehabilitation overview for this week.</p>
         </div>
-        
-        <Link 
-          to="/track" 
-          className="bg-[#0D9488] hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-bold shadow-sm transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-        >
-          <Play size={18} fill="currentColor" />
-          Start New Session
-        </Link>
       </section>
 
       {/* 2. Top Metric Cards Grid */}
@@ -109,37 +107,39 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h2 className="text-xl font-bold text-[#0F172A]">Start Daily Prescription</h2>
-            <p className="text-slate-500 text-sm mt-1">Select an exercise assigned by your physical therapist.</p>
+            <p className="text-slate-500 text-sm mt-1">
+              Click a prescription card to launch the live tracker for that exercise.
+            </p>
           </div>
-          <button 
-            onClick={handleLaunchCamera}
-            className="flex items-center justify-center gap-2 bg-[#0F172A] hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all"
-          >
-            Launch Camera Tracking
-            <ArrowRight size={18} />
-          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {prescriptions.map((presc) => (
             <button 
               key={presc.exerciseType}
-              onClick={() => setSelectedExercise(presc.exerciseType)}
+              onClick={() => handleLaunchCamera()}
+              onMouseEnter={() => setSelectedExercise(presc.exerciseType)}
               className={`p-5 rounded-xl border-2 text-left transition-all ${selectedExercise === presc.exerciseType ? 'border-[#0D9488] bg-teal-50 shadow-sm transform -translate-y-0.5' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
             >
               <div className="flex justify-between items-start mb-2">
                 <h3 className={`font-bold ${selectedExercise === presc.exerciseType ? 'text-[#0D9488]' : 'text-slate-700'}`}>
                   {presc.exerciseType.replace('_', ' ')}
                 </h3>
-                {selectedExercise === presc.exerciseType && <CheckCircle2 size={20} className="text-[#0D9488]" />}
+                {selectedExercise === presc.exerciseType && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-[#0D9488]">
+                    <ArrowRight size={14} /> Start
+                  </span>
+                )}
               </div>
               <p className="text-slate-500 text-sm">Assigned Exercise</p>
               <div className="mt-4 inline-flex px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600">
-                Target: {presc.targetSets} sets x {presc.targetReps} reps
+                Target: {presc.targetSets} sets × {presc.targetReps} reps
               </div>
             </button>
           ))}
-          {prescriptions.length === 0 && <p className="text-slate-500 text-sm">No prescriptions assigned yet.</p>}
+          {prescriptions.length === 0 && (
+            <p className="text-slate-500 text-sm col-span-3">No prescriptions assigned yet.</p>
+          )}
         </div>
       </section>
 
