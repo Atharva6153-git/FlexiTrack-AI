@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Activity, Mail, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
@@ -21,10 +21,13 @@ const errorMessage = (err) =>
 const Login = () => {
   const navigate   = useNavigate();
   const location   = useLocation();
-  const { loginWithEmail, registerWithEmail, loginWithGoogle } = useAuth();
+  const { loginWithEmail, registerWithEmail, loginWithGoogle, user, loading } = useAuth();
 
-  // Redirect back to where the user was trying to go, or /dashboard
+  // If already logged in, skip the login page entirely
   const from = location.state?.from?.pathname ?? '/dashboard';
+  if (!loading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const [tab, setTab]             = useState(location.state?.tab === 'signup' ? 'signup' : 'login');
   const [name, setName]           = useState('');
