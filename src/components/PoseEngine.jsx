@@ -108,6 +108,40 @@ export default function PoseEngine({
     let animationFrameId = null;
     let pose = null;
 
+    // AbortError and NotReadableError are transient cold-start failures on some
+    // webcams (driver not ready yet). Any other error (NotAllowedError, etc.)
+    // is permanent and should surface immediately without retrying.
+    const RETRYABLE_ERRORS = new Set(['AbortError', 'NotReadableError']);
+    const RETRY_DELAY_MS = 1000;
+    const MAX_ATTEMPTS = 2;
+
+    const acquireStream = async () => {
+      let lastErr;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          console.log(`[PoseEngine] Camera attempt ${attempt}...`);
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480 },
+          });
+          console.log(`[PoseEngine] Camera attempt ${attempt} succeeded.`);
+          return stream;
+        } catch (err) {
+          lastErr = err;
+          if (RETRYABLE_ERRORS.has(err.name) && attempt < MAX_ATTEMPTS) {
+            console.warn(
+              `[PoseEngine] Camera attempt ${attempt} failed (${err.name}), retrying in ${RETRY_DELAY_MS}ms...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+          } else {
+            // Non-retryable error, or we've exhausted attempts — rethrow
+            throw err;
+          }
+        }
+      }
+      // Should be unreachable, but satisfy the linter
+      throw lastErr;
+    };
+
     const startCamera = async () => {
       console.log('[PoseEngine] startCamera() called');
       const globals = getPoseGlobals();
@@ -135,10 +169,9 @@ export default function PoseEngine({
         // selectedExercise + isActive) always runs, without re-mounting.
         pose.onResults((results) => onResultsRef.current(results));
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480 },
-        });
-
+        // acquireStream handles AbortError/NotReadableError with one automatic
+        // retry; all other errors propagate straight to the outer catch.
+        const stream = await acquireStream();
         streamRef.current = stream;
 
         if (videoRef.current) {
@@ -157,7 +190,7 @@ export default function PoseEngine({
           console.error('[PoseEngine] ERROR: videoRef.current is null!');
         }
       } catch (err) {
-        console.error('[PoseEngine] Camera Error:', err);
+        console.error('[PoseEngine] Camera failed after all attempts:', err);
         setCameraError(`Camera Error: ${err.message || 'Permissions Blocked'}`);
       }
     };
