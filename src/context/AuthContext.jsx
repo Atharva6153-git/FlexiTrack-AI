@@ -7,6 +7,7 @@ import {
   signOut,
   updateProfile,
 } from 'firebase/auth';
+import axios from 'axios';
 import { auth, googleProvider } from '../config/firebase';
 
 const AuthContext = createContext(null);
@@ -17,27 +18,48 @@ export const useAuth = () => {
   return ctx;
 };
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const DEFAULT_THERAPIST_ID = 'therapist_default';
+
+/**
+ * Ensures a Patient record exists in the backend for this Firebase user.
+ * Called after every successful sign-in. Safe to call multiple times —
+ * the backend returns 400 on duplicate patientId, which we silently ignore.
+ */
+const ensurePatientRecord = async (firebaseUser) => {
+  try {
+    await axios.post(`${API_URL}/api/patients`, {
+      patientId:   firebaseUser.uid,
+      name:        firebaseUser.displayName || firebaseUser.email.split('@')[0],
+      therapistId: DEFAULT_THERAPIST_ID,
+    });
+  } catch (err) {
+    // 400 = patient already exists — that's fine, nothing to do
+    if (err?.response?.status !== 400) {
+      console.error('[AuthContext] ensurePatientRecord failed:', err.message);
+    }
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser]       = useState(null);
-  // null  = still checking Firebase (show splash / nothing)
-  // false = checked, not logged in
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // Enforce 24-hour session: check when they logged in
         const loginTime = localStorage.getItem('ft_login_time');
         const now = Date.now();
         const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
         if (loginTime && now - parseInt(loginTime, 10) > TWENTY_FOUR_HOURS) {
-          // Session expired — sign out silently
           signOut(auth);
           localStorage.removeItem('ft_login_time');
           setUser(false);
         } else {
           setUser(firebaseUser);
+          // Ensure the backend Patient record exists (no-op if already created)
+          ensurePatientRecord(firebaseUser);
         }
       } else {
         setUser(false);
@@ -60,6 +82,8 @@ export const AuthProvider = ({ children }) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName: name });
     localStorage.setItem('ft_login_time', Date.now().toString());
+    // Pass the updated user object (with displayName) to ensurePatientRecord
+    await ensurePatientRecord({ ...credential.user, displayName: name });
     setUser({ ...credential.user, displayName: name });
     return credential;
   };

@@ -9,32 +9,46 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [selectedExercise, setSelectedExercise] = useState('BICEP_CURL');
 
-  const patientId = localStorage.getItem('patientId') || 'patient_123';
+  // Use Firebase UID as patientId
+  const patientId = user?.uid;
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   const [recentSessions, setRecentSessions] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
+  const [allSessions, setAllSessions] = useState([]);
 
-  // Display name: prefer Firebase displayName, fall back to email prefix
   const displayName = user?.displayName ?? user?.email?.split('@')[0] ?? 'there';
 
   useEffect(() => {
+    if (!patientId) return;
     const fetchData = async () => {
       try {
         const patientRes = await axios.get(`${API_URL}/api/patients/${patientId}`);
         setPrescriptions(patientRes.data.prescriptions || []);
-        if (patientRes.data.prescriptions && patientRes.data.prescriptions.length > 0) {
-           setSelectedExercise(patientRes.data.prescriptions[0].exerciseType);
+        if (patientRes.data.prescriptions?.length > 0) {
+          setSelectedExercise(patientRes.data.prescriptions[0].exerciseType);
         }
 
         const sessionRes = await axios.get(`${API_URL}/api/sessions/patient/${patientId}`);
-        setRecentSessions(sessionRes.data.slice(0, 3));
+        const sessions = sessionRes.data;
+        setAllSessions(sessions);
+        setRecentSessions(sessions.slice(0, 3));
       } catch (err) {
         console.error("Error fetching dashboard data", err);
       }
     };
     fetchData();
   }, [patientId, API_URL]);
+
+  // Compute live stats from real sessions
+  const totalSessions = allSessions.length;
+  const peakAngle = allSessions.length > 0
+    ? Math.max(...allSessions.map(s => s.maxFlexionAngle || 0))
+    : 0;
+  const sessionsWithScore = allSessions.filter(s => s.formAccuracyScore != null);
+  const avgFormScore = sessionsWithScore.length > 0
+    ? Math.round(sessionsWithScore.reduce((acc, s) => acc + s.formAccuracyScore, 0) / sessionsWithScore.length)
+    : 0;
 
   const handleLaunchCamera = () => {
     navigate('/track', { state: { defaultExercise: selectedExercise } });
@@ -67,7 +81,7 @@ const Dashboard = () => {
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Sessions</p>
-            <p className="text-3xl font-bold text-[#0F172A]">18 <span className="text-sm font-medium text-slate-400 normal-case tracking-normal">Sessions</span></p>
+            <p className="text-3xl font-bold text-[#0F172A]">{totalSessions} <span className="text-sm font-medium text-slate-400 normal-case tracking-normal">Sessions</span></p>
           </div>
         </div>
 
@@ -87,7 +101,7 @@ const Dashboard = () => {
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Avg Form Accuracy</p>
-            <p className="text-3xl font-bold text-[#0F172A]">92<span className="text-2xl text-slate-400">%</span></p>
+            <p className="text-3xl font-bold text-[#0F172A]">{avgFormScore}<span className="text-2xl text-slate-400">%</span></p>
           </div>
         </div>
 
@@ -97,7 +111,7 @@ const Dashboard = () => {
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Peak Range of Motion</p>
-            <p className="text-3xl font-bold text-[#0F172A]">142<span className="text-2xl text-slate-400 font-normal">°</span> <span className="text-sm font-medium text-slate-400 normal-case tracking-normal">Flexion</span></p>
+            <p className="text-3xl font-bold text-[#0F172A]">{peakAngle}<span className="text-2xl text-slate-400 font-normal">°</span> <span className="text-sm font-medium text-slate-400 normal-case tracking-normal">Flexion</span></p>
           </div>
         </div>
       </section>

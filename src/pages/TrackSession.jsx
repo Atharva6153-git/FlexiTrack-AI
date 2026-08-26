@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Camera, Volume2, VolumeX, CheckCircle2, RotateCcw, Save, ArrowLeft, Target, Timer, Zap, AlertCircle } from 'lucide-react';
 import PoseEngine from '../components/PoseEngine';
 import { evaluateRepetition } from '../utils/exerciseRules';
+import { useAuth } from '../context/AuthContext';
 
 // Ideal peak-flexion targets per exercise (degrees) — used to score form quality.
 // A rep that reaches within ±15° of the target scores 100%; each degree beyond
@@ -18,10 +19,12 @@ const FORM_TOLERANCE_DEG = 15;  // degrees of leeway before penalty kicks in
 const TrackSession = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+  const { user } = useAuth();
+
   const defaultExercise = location.state?.defaultExercise || 'BICEP_CURL';
   const [selectedExercise, setSelectedExercise] = useState(defaultExercise);
-  const patientId = localStorage.getItem('patientId') || 'patient_123';
+  // Use Firebase UID as patientId — guaranteed unique and tied to the logged-in user
+  const patientId = user?.uid;
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const [prescriptions, setPrescriptions] = useState([]);
   const [isMuted, setIsMuted] = useState(false);

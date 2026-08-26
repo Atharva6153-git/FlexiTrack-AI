@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { TrendingUp, BarChart3, Calendar, Filter, Clock, Award, Activity, Play } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAuth } from '../context/AuthContext';
 
 const EXERCISE_LABELS = {
   BICEP_CURL: 'Bicep Curl',
@@ -11,10 +12,11 @@ const EXERCISE_LABELS = {
 };
 
 const History = () => {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState('ALL'); // 'ALL', 'BICEP_CURL', 'SQUAT', 'KNEE_EXTENSION'
-  const patientId = localStorage.getItem('patientId') || 'patient_123';
+  const [filter, setFilter] = useState('ALL');
+  const patientId = user?.uid;
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
