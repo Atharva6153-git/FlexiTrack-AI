@@ -27,14 +27,18 @@ const DEFAULT_THERAPIST_ID = 'therapist_default';
  * the backend returns 400 on duplicate patientId, which we silently ignore.
  */
 const ensurePatientRecord = async (firebaseUser) => {
+  const requestBody = {
+    patientId: firebaseUser.uid,
+    name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+    therapistId: DEFAULT_THERAPIST_ID,
+  };
+
+  console.log('[AuthContext] POST /api/patients request body:', requestBody);
   try {
-    const response = await axios.post(`${API_URL}/api/patients`, {
-      patientId:   firebaseUser.uid,
-      name:        firebaseUser.displayName || firebaseUser.email.split('@')[0],
-      therapistId: DEFAULT_THERAPIST_ID,
-    });
+    const response = await axios.post(`${API_URL}/api/patients`, requestBody);
     return response.data;
   } catch (err) {
+    console.error('[AuthContext] POST /api/patients error response:', err.response?.data);
     // 400 = patient already exists — that's fine, nothing to do
     if (err?.response?.status !== 400) {
       console.error('[AuthContext] ensurePatientRecord failed:', err.message);
@@ -100,7 +104,11 @@ export const AuthProvider = ({ children }) => {
     await updateProfile(credential.user, { displayName: name });
     localStorage.setItem('ft_login_time', Date.now().toString());
     // Pass the updated user object (with displayName) to ensurePatientRecord
-    const patient = await ensurePatientRecord({ ...credential.user, displayName: name });
+    const patient = await ensurePatientRecord({
+      uid: credential.user.uid,
+      email: credential.user.email,
+      displayName: name,
+    });
     setRole(patient?.role || 'patient');
     setUser({ ...credential.user, displayName: name });
     return credential;

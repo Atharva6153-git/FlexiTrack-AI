@@ -7,10 +7,21 @@ const router = express.Router();
 // Create patient
 router.post('/', async (req, res) => {
   try {
-    const patient = new Patient(req.body);
-    await patient.save();
-    res.status(201).json(patient);
+    console.log('[POST /api/patients] request body:', req.body);
+    const patient = await Patient.findOneAndUpdate(
+      { patientId: req.body.patientId },
+      { $setOnInsert: req.body },
+      { returnDocument: 'after', upsert: true, runValidators: true }
+    );
+    res.status(200).json(patient);
   } catch (err) {
+    console.error('[POST /api/patients] failed:', {
+      requestBody: req.body,
+      name: err.name,
+      message: err.message,
+      errors: err.errors,
+      code: err.code,
+    });
     res.status(400).json({ error: err.message });
   }
 });
