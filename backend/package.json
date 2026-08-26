@@ -1,0 +1,6 @@
+{
+  "name": "flexitrack-backend",
+  "version": "1.0.0",
+  "description": "Backend for FlexiTrack AI",
+  "type": "commonjs"
+}

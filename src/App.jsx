@@ -1,195 +1,239 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-
-// Note: Ensure you have these components built or use placeholders for now
 import PoseEngine from './components/PoseEngine';
-import Dashboard from './components/Dashboard';
+// Mock/Placeholder for ProgressChart if it doesn't exist yet
 import ProgressChart from './components/ProgressChart';
-import { evaluateExercise } from './utils/exerciseRules';
+import { evaluateRepetition, EXERCISE_CONFIGS } from './utils/exerciseRules';
 
 const App = () => {
   // 1. State Management
-  const [selectedExercise, setSelectedExercise] = useState('BICEP_CURL'); // 'BICEP_CURL', 'SQUAT', 'KNEE_EXTENSION'
+  const [selectedExercise, setSelectedExercise] = useState('BICEP_CURL');
+  const [patientId, setPatientId] = useState('patient_123');
+  
   const [sessionMetrics, setSessionMetrics] = useState({
     angle: 0,
     repCount: 0,
-    formFeedback: 'Ready to start!',
+    feedback: 'Ready to start!',
+    formScore: 100,
     sessionDuration: 0,
     maxFlexionAngle: 0,
-    formAccuracyScore: 100, // starting at 100%
+    repState: 'DOWN', // Used internally by the state machine
   });
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [historicalSessions, setHistoricalSessions] = useState([]);
+  
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [historicalSessions, setHistoricalSessions] = useState([]);
 
-  // Hardcoded patientId for demonstration, in a real app this comes from auth state
-  const patientId = '64f1b2c3d4e5f60012345678'; 
-  const API_BASE_URL = 'http://localhost:5000/api/sessions';
+  const API_URL = 'http://localhost:5000/api/sessions';
 
-  // Fetch historical data
-  const fetchHistoricalSessions = useCallback(async () => {
+  // 3. API Operations: Fetch History
+  const fetchSessionHistory = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/patient/${patientId}`);
+      const response = await axios.get(`${API_URL}/patient/${patientId}`);
       setHistoricalSessions(response.data);
     } catch (error) {
-      console.error('Error fetching historical sessions:', error);
+      console.error('Error fetching history:', error);
     }
   }, [patientId]);
 
-  // Load historical data on mount
+  // Fetch history on load and when patientId changes
   useEffect(() => {
-    fetchHistoricalSessions();
-  }, [fetchHistoricalSessions]);
+    fetchSessionHistory();
+  }, [fetchSessionHistory]);
 
-  // Timer for session duration
+  // Session Timer
   useEffect(() => {
     let timer;
     if (isSessionActive) {
       timer = setInterval(() => {
-        setSessionMetrics((prev) => ({
-          ...prev,
-          sessionDuration: prev.sessionDuration + 1,
+        setSessionMetrics(prev => ({ 
+          ...prev, 
+          sessionDuration: prev.sessionDuration + 1 
         }));
       }, 1000);
     }
     return () => clearInterval(timer);
   }, [isSessionActive]);
 
-  // 2. Real-Time Tracking Flow: Callback from PoseEngine
-  const handlePoseUpdate = useCallback((poseData) => {
+  // 2. Live Tracking: Handle data emitted by PoseEngine
+  const handlePoseUpdate = useCallback(({ angle, confidence, landmarks }) => {
     if (!isSessionActive) return;
 
-    // Evaluate exercise based on rules
-    const evaluation = evaluateExercise(selectedExercise, poseData);
-    
-    setSessionMetrics((prev) => {
-      const newMaxFlexion = Math.max(prev.maxFlexionAngle, evaluation.angle || 0);
-      
-      // Basic voice feedback trigger if audio is enabled
-      if (isAudioEnabled && evaluation.feedback && evaluation.feedback !== prev.formFeedback) {
-        speak(evaluation.feedback);
-      }
+    setSessionMetrics(prev => {
+      // Feed angle metrics into exerciseRules state machine
+      const { newState, isRepComplete, feedback } = evaluateRepetition(
+        selectedExercise, 
+        angle, 
+        prev.repState
+      );
 
       return {
         ...prev,
-        angle: evaluation.angle || prev.angle,
-        repCount: evaluation.repCount !== undefined ? evaluation.repCount : prev.repCount,
-        formFeedback: evaluation.feedback || prev.formFeedback,
-        maxFlexionAngle: newMaxFlexion,
-        // Simple form accuracy penalty for demonstration
-        formAccuracyScore: evaluation.isProperForm ? prev.formAccuracyScore : Math.max(0, prev.formAccuracyScore - 1),
+        angle: angle,
+        maxFlexionAngle: Math.max(prev.maxFlexionAngle, angle),
+        repState: newState,
+        // Increment rep count if state machine says it's complete
+        repCount: isRepComplete ? prev.repCount + 1 : prev.repCount,
+        // Only update feedback string if the state machine provided a new one
+        feedback: feedback || prev.feedback,
       };
     });
-  }, [selectedExercise, isSessionActive, isAudioEnabled]);
-
-  // Text-to-Speech function for voice guidance
-  const speak = (text) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  }, [isSessionActive, selectedExercise]);
 
   const handleStartSession = () => {
     setSessionMetrics({
       angle: 0,
       repCount: 0,
-      formFeedback: 'Ready to start!',
+      feedback: 'Tracking started. Let\'s go!',
+      formScore: 100,
       sessionDuration: 0,
       maxFlexionAngle: 0,
-      formAccuracyScore: 100,
+      repState: 'DOWN',
     });
     setIsSessionActive(true);
   };
 
-  // 3. Backend API Persistence
+  // 3. API Operations: Save Session
   const handleFinishSession = async () => {
     setIsSessionActive(false);
     
-    const payload = {
-      patientId,
-      exerciseType: selectedExercise,
-      totalReps: sessionMetrics.repCount,
-      targetReps: 10, // Example target reps
-      avgAngle: sessionMetrics.maxFlexionAngle / 2, // Mock calc for average angle
-      maxFlexionAngle: sessionMetrics.maxFlexionAngle,
-      formAccuracyScore: sessionMetrics.formAccuracyScore,
-      durationSeconds: sessionMetrics.sessionDuration,
-    };
-
     try {
-      await axios.post(API_BASE_URL, payload);
-      // Fetch updated history after successful post
-      await fetchHistoricalSessions();
+      await axios.post(API_URL, {
+        patientId,
+        exerciseType: selectedExercise,
+        totalReps: sessionMetrics.repCount,
+        targetReps: 10,
+        avgAngle: sessionMetrics.maxFlexionAngle / 2, // Approximated average for demo
+        maxFlexionAngle: sessionMetrics.maxFlexionAngle,
+        formAccuracyScore: sessionMetrics.formScore,
+        durationSeconds: sessionMetrics.sessionDuration
+      });
       
-      if (isAudioEnabled) {
-        speak('Workout session completed and saved.');
-      }
+      // Trigger a re-fetch of history after submission
+      fetchSessionHistory();
     } catch (error) {
-      console.error('Error saving workout session:', error);
-      alert('Failed to save workout session.');
+      console.error('Error saving session:', error);
+      alert('Failed to save session. Check if backend is running.');
     }
   };
 
+  // Automatically pass the required landmarks to PoseEngine based on selected exercise
+  const activeLandmarks = EXERCISE_CONFIGS[selectedExercise]?.landmarks || { a: 12, b: 14, c: 16 };
+
+  // 4. Modern dashboard layout styled with standard Tailwind CSS classes
   return (
-    <div className="flexi-track-app p-4 max-w-6xl mx-auto font-sans">
-      <header className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-blue-600">FlexiTrack AI</h1>
-        <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8 font-sans">
+      
+      {/* Header */}
+      <header className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-4xl font-extrabold text-blue-700 tracking-tight">FlexiTrack AI</h1>
+          <p className="text-slate-500 font-medium">Real-time Rehabilitation Tracking</p>
+        </div>
+        
+        <div className="flex gap-4">
+          <input 
+            type="text" 
+            value={patientId}
+            onChange={(e) => setPatientId(e.target.value)}
+            className="border border-slate-300 rounded-lg px-4 py-2 bg-white shadow-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Patient ID"
+          />
           <select 
-            value={selectedExercise} 
+            value={selectedExercise}
             onChange={(e) => setSelectedExercise(e.target.value)}
             disabled={isSessionActive}
-            className="p-2 border rounded"
+            className="border border-slate-300 rounded-lg px-4 py-2 bg-white shadow-sm font-semibold text-slate-700 cursor-pointer disabled:opacity-50 outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="BICEP_CURL">Bicep Curl</option>
             <option value="SQUAT">Squat</option>
             <option value="KNEE_EXTENSION">Knee Extension</option>
           </select>
-          <button 
-            onClick={() => setIsAudioEnabled(!isAudioEnabled)}
-            className={`p-2 rounded text-white ${isAudioEnabled ? 'bg-green-500' : 'bg-red-500'}`}
-          >
-            {isAudioEnabled ? 'Audio: ON' : 'Audio: OFF'}
-          </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left Column: Camera / Tracking */}
-        <div className="bg-gray-100 rounded-lg p-4 shadow">
-          <h2 className="text-xl font-semibold mb-4">Live Tracking</h2>
+      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Column: Live Tracking & Camera */}
+        <div className="lg:col-span-7 bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col">
           
-          {/* PoseEngine component receives the callback */}
-          <div className="aspect-video bg-black flex items-center justify-center text-white rounded overflow-hidden">
-             <PoseEngine onPoseUpdate={handlePoseUpdate} isActive={isSessionActive} />
+          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 className="text-xl font-bold text-slate-800">Live Camera Feed</h2>
+            <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide ${isSessionActive ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-600 border border-slate-300'}`}>
+              {isSessionActive ? '● Recording' : 'Paused'}
+            </span>
           </div>
           
-          <div className="mt-4 flex gap-4">
+          {/* Pose Engine Container */}
+          <div className="relative aspect-video bg-slate-900 flex-grow">
+            <PoseEngine 
+              isActive={isSessionActive} 
+              onPoseResults={handlePoseUpdate}
+              targetLandmarks={activeLandmarks}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="p-6 bg-slate-50 flex gap-4">
             {!isSessionActive ? (
               <button 
                 onClick={handleStartSession}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
               >
                 Start Workout
               </button>
             ) : (
               <button 
                 onClick={handleFinishSession}
-                className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition"
+                className="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
               >
-                Finish Workout Session
+                Finish & Save Session
               </button>
             )}
           </div>
         </div>
 
-        {/* Right Column: Dashboard & Analytics */}
-        <div className="flex flex-col gap-6">
-          <Dashboard metrics={sessionMetrics} />
-          <ProgressChart history={historicalSessions} />
+        {/* Right Column: Real-time Stats & History */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          
+          {/* Live Metrics Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-t-4 border-t-blue-500">
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Rep Count</p>
+              <p className="text-4xl font-black text-slate-800">{sessionMetrics.repCount}</p>
+            </div>
+            
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-t-4 border-t-indigo-500">
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Current Angle</p>
+              <p className="text-4xl font-black text-slate-800">{Math.round(sessionMetrics.angle)}°</p>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-t-4 border-t-emerald-500">
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Form Score</p>
+              <p className="text-4xl font-black text-slate-800">{sessionMetrics.formScore}%</p>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-t-4 border-t-amber-500">
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Time Elapsed</p>
+              <p className="text-4xl font-black text-slate-800">{sessionMetrics.sessionDuration}s</p>
+            </div>
+          </div>
+
+          {/* Real-time AI Feedback Banner */}
+          <div className="bg-indigo-50 p-6 rounded-2xl shadow-sm border border-indigo-100">
+            <p className="text-indigo-800 font-semibold text-sm uppercase tracking-wide">AI Feedback Coach:</p>
+            <p className="text-2xl font-bold text-indigo-600 mt-2">{sessionMetrics.feedback}</p>
+          </div>
+
+          {/* Progress Chart Module */}
+          <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100 flex-grow">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Session History</h3>
+            <div className="min-h-[200px] flex items-center justify-center">
+               <ProgressChart history={historicalSessions} />
+            </div>
+          </div>
+
         </div>
-      </div>
+      </main>
     </div>
   );
 };
