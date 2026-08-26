@@ -1,13 +1,15 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const sessionSchema = new mongoose.Schema({
+const SessionSchema = new Schema({
   patientId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
   exerciseType: {
     type: String,
+    enum: ['BICEP_CURL', 'SQUAT', 'KNEE_EXTENSION'],
     required: true,
   },
   totalReps: {
@@ -16,26 +18,24 @@ const sessionSchema = new mongoose.Schema({
   },
   targetReps: {
     type: Number,
-    required: true,
+    default: 10,
   },
   avgAngle: {
     type: Number,
-    required: true,
   },
   maxFlexionAngle: {
     type: Number,
-    required: true,
   },
   formAccuracyScore: {
     type: Number,
-    required: true,
-    min: 0,
-    max: 100,
   },
   durationSeconds: {
     type: Number,
-    required: true,
   },
-}, { timestamps: true });
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  }
+});
 
-module.exports = mongoose.model('Session', sessionSchema);
+module.exports = mongoose.model('Session', SessionSchema);

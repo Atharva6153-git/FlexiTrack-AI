@@ -4,7 +4,7 @@ const Session = require('../models/Session');
 const mongoose = require('mongoose');
 
 // POST /api/sessions
-// Validate and save a new completed rehabilitation session
+// Save a completed rehabilitation session to the database
 router.post('/', async (req, res) => {
   try {
     const {
@@ -18,17 +18,9 @@ router.post('/', async (req, res) => {
       durationSeconds,
     } = req.body;
 
-    if (
-      !patientId ||
-      !exerciseType ||
-      totalReps === undefined ||
-      targetReps === undefined ||
-      avgAngle === undefined ||
-      maxFlexionAngle === undefined ||
-      formAccuracyScore === undefined ||
-      durationSeconds === undefined
-    ) {
-      return res.status(400).json({ error: 'All fields are required.' });
+    // Validate required fields
+    if (!patientId || !exerciseType || totalReps === undefined) {
+      return res.status(400).json({ error: 'patientId, exerciseType, and totalReps are required fields.' });
     }
 
     const newSession = new Session({
@@ -51,7 +43,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/sessions/patient/:patientId
-// Retrieve all past workout sessions for a specific patient sorted by latest date
+// Fetch all workout sessions for a given patient ID, sorted by createdAt descending
 router.get('/patient/:patientId', async (req, res) => {
   try {
     const { patientId } = req.params;
@@ -69,7 +61,7 @@ router.get('/patient/:patientId', async (req, res) => {
 });
 
 // GET /api/sessions/analytics/:patientId
-// Return aggregated statistics (total reps completed, average form score, maximum range of motion trend)
+// Compute aggregate statistics
 router.get('/analytics/:patientId', async (req, res) => {
   try {
     const { patientId } = req.params;
@@ -78,27 +70,41 @@ router.get('/analytics/:patientId', async (req, res) => {
       return res.status(400).json({ error: 'Invalid patientId.' });
     }
 
-    const sessions = await Session.find({ patientId });
+    // We sort ascending by createdAt for the trend array to be chronological
+    const sessions = await Session.find({ patientId }).sort({ createdAt: 1 });
 
     if (sessions.length === 0) {
       return res.status(200).json({
-        totalRepsCompleted: 0,
-        averageFormScore: 0,
-        maxRangeOfMotion: 0,
-        sessionCount: 0
+        totalSessions: 0,
+        totalReps: 0,
+        averageFormAccuracyScore: 0,
+        maxFlexionAngleTrend: []
       });
     }
 
-    const totalRepsCompleted = sessions.reduce((acc, curr) => acc + curr.totalReps, 0);
-    const sumFormScore = sessions.reduce((acc, curr) => acc + curr.formAccuracyScore, 0);
-    const averageFormScore = sumFormScore / sessions.length;
-    const maxRangeOfMotion = Math.max(...sessions.map(s => s.maxFlexionAngle));
+    const totalSessions = sessions.length;
+    const totalReps = sessions.reduce((acc, curr) => acc + (curr.totalReps || 0), 0);
+    
+    // Filter sessions that have a form accuracy score
+    const sessionsWithFormScore = sessions.filter(s => s.formAccuracyScore !== undefined && s.formAccuracyScore !== null);
+    const sumFormScore = sessionsWithFormScore.reduce((acc, curr) => acc + curr.formAccuracyScore, 0);
+    const averageFormAccuracyScore = sessionsWithFormScore.length > 0 
+      ? (sumFormScore / sessionsWithFormScore.length).toFixed(2) 
+      : 0;
+
+    // Build trend array with date and angle
+    const maxFlexionAngleTrend = sessions
+      .filter(s => s.maxFlexionAngle !== undefined && s.maxFlexionAngle !== null)
+      .map(s => ({
+        date: s.createdAt,
+        angle: s.maxFlexionAngle
+      }));
 
     res.status(200).json({
-      totalRepsCompleted,
-      averageFormScore,
-      maxRangeOfMotion,
-      sessionCount: sessions.length
+      totalSessions,
+      totalReps,
+      averageFormAccuracyScore: Number(averageFormAccuracyScore),
+      maxFlexionAngleTrend
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);

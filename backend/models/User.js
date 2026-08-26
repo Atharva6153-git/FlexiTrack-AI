@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
+const UserSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -13,13 +13,12 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['patient', 'therapist'],
-    required: true,
+    default: 'patient',
   },
-  assignedTherapistId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null,
+  createdAt: {
+    type: Date,
+    default: Date.now,
   }
-}, { timestamps: true });
+});
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', UserSchema);

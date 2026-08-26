@@ -12,7 +12,7 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173', // Allow requests from the frontend
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
 }));
 app.use(express.json());
 
@@ -21,7 +21,7 @@ app.use('/api/sessions', sessionRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.status(200).json({ status: 'success', message: 'FlexiTrack AI API is running' });
+  res.status(200).json({ status: 'FlexiTrack API Running' });
 });
 
 // Start the server
