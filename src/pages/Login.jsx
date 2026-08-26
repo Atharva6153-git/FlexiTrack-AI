@@ -23,12 +23,6 @@ const Login = () => {
   const location   = useLocation();
   const { loginWithEmail, registerWithEmail, loginWithGoogle, user, loading } = useAuth();
 
-  // If already logged in, skip the login page entirely
-  const from = location.state?.from?.pathname ?? '/dashboard';
-  if (!loading && user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const [tab, setTab]             = useState(location.state?.tab === 'signup' ? 'signup' : 'login');
   const [name, setName]           = useState('');
   const [email, setEmail]         = useState('');
@@ -36,7 +30,12 @@ const Login = () => {
   const [showPass, setShowPass]   = useState(false);
   const [error, setError]         = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
+
+  // If already logged in, skip the login page entirely
+  const from = location.state?.from?.pathname ?? '/dashboard';
+  if (!loading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const reset = () => { setError(''); setName(''); setEmail(''); setPassword(''); };
 

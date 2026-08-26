@@ -12,8 +12,15 @@ const app = express();
 connectDB();
 
 // Middleware
+const configuredClientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    const isLocalDevelopmentOrigin = /^http:\/\/localhost:\d+$/.test(origin || '');
+    if (!origin || origin === configuredClientUrl || isLocalDevelopmentOrigin) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin not allowed by CORS'));
+  },
 }));
 app.use(express.json());
 
