@@ -7,7 +7,18 @@ const getPoseGlobals = () => ({
   drawLandmarks: window.drawLandmarks,
 });
 
-export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CURL' }) {
+// Landmark indices per exercise — must match exerciseRules.js EXERCISE_CONFIGS
+const LANDMARK_MAP = {
+  BICEP_CURL:      { p1: 12, p2: 14, p3: 16 }, // shoulder, elbow, wrist (right arm)
+  SQUAT:           { p1: 24, p2: 26, p3: 28 }, // hip, knee, ankle (right leg)
+  KNEE_EXTENSION:  { p1: 24, p2: 26, p3: 28 }, // hip, knee, ankle (right leg)
+};
+
+export default function PoseEngine({
+  onPoseResults,
+  isActive = false,
+  selectedExercise = 'BICEP_CURL',
+}) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -16,7 +27,8 @@ export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CU
   const [cameraError, setCameraError] = useState(null);
 
   const calculateAngle = (a, b, c) => {
-    const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    const radians =
+      Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
     let degrees = Math.abs((radians * 180.0) / Math.PI);
     if (degrees > 180.0) degrees = 360.0 - degrees;
     return Math.round(degrees);
@@ -52,30 +64,33 @@ export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CU
           radius: 4,
         });
 
-        let p1 = landmarks[12], p2 = landmarks[14], p3 = landmarks[16];
-        if (selectedExercise === 'SQUAT' || selectedExercise === 'KNEE_EXTENSION') {
-          p1 = landmarks[24]; p2 = landmarks[26]; p3 = landmarks[28];
-        }
+        // Use the correct landmark indices for the active exercise
+        const lm = LANDMARK_MAP[selectedExercise] ?? LANDMARK_MAP.BICEP_CURL;
+        const p1 = landmarks[lm.p1];
+        const p2 = landmarks[lm.p2];
+        const p3 = landmarks[lm.p3];
 
         if (p1?.visibility > 0.5 && p2?.visibility > 0.5 && p3?.visibility > 0.5) {
           const angle = calculateAngle(p1, p2, p3);
           const cx = p2.x * width;
           const cy = p2.y * height;
 
+          // Draw angle label on the joint
           ctx.fillStyle = '#0F172A';
           ctx.fillRect(cx - 30, cy - 30, 60, 26);
           ctx.fillStyle = '#22C55E';
           ctx.font = 'bold 14px JetBrains Mono, monospace';
           ctx.fillText(`${angle}°`, cx - 20, cy - 12);
 
-          if (onPoseResults) {
+          // Only fire the callback when a session is actively running
+          if (isActive && onPoseResults) {
             onPoseResults({ angle, confidence: p2.visibility, landmarks });
           }
         }
       }
       ctx.restore();
     },
-    [onPoseResults, selectedExercise]
+    [onPoseResults, selectedExercise, isActive]
   );
 
   // Keep a ref to the latest onResults so pose.onResults() always calls
@@ -97,17 +112,16 @@ export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CU
       console.log('[PoseEngine] startCamera() called');
       const globals = getPoseGlobals();
 
-      console.log('[PoseEngine] Globals found:', !!globals.Pose);
       if (!globals.Pose) {
         console.error('[PoseEngine] ERROR: window.Pose is undefined! The MediaPipe CDN script has not loaded yet.');
         return;
       }
 
       try {
-        console.log('[PoseEngine] Initializing Pose model...');
         setCameraError(null);
         pose = new globals.Pose({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+          locateFile: (file) =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
         });
 
         pose.setOptions({
@@ -118,24 +132,19 @@ export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CU
         });
 
         // Call through the ref so the latest onResults (with current
-        // selectedExercise) always runs, without re-mounting the camera.
+        // selectedExercise + isActive) always runs, without re-mounting.
         pose.onResults((results) => onResultsRef.current(results));
 
-        console.log('[PoseEngine] Requesting webcam permissions via getUserMedia...');
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: 640, height: 480 },
         });
 
         streamRef.current = stream;
 
-        console.log('[PoseEngine] Webcam access granted! Stream:', stream);
-
         if (videoRef.current) {
-          console.log('[PoseEngine] Attaching stream to videoRef and playing...');
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
           setIsLoaded(true);
-          console.log('[PoseEngine] Video is playing, starting frame processing loop...');
 
           const processFrame = async () => {
             if (videoRef.current && videoRef.current.readyState >= 2) {
@@ -145,15 +154,10 @@ export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CU
           };
           processFrame();
         } else {
-          console.error('[PoseEngine] ERROR: videoRef.current is null! Cannot attach stream.');
+          console.error('[PoseEngine] ERROR: videoRef.current is null!');
         }
       } catch (err) {
-        console.error('[PoseEngine] FATAL Webcam/Camera Error Details:', {
-          name: err.name,
-          message: err.message,
-          stack: err.stack,
-          rawError: err,
-        });
+        console.error('[PoseEngine] Camera Error:', err);
         setCameraError(`Camera Error: ${err.message || 'Permissions Blocked'}`);
       }
     };
@@ -169,7 +173,7 @@ export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CU
       if (pose) pose.close();
       hasStarted.current = false;
     };
-  }, []); // empty deps — camera starts exactly once per mount, never on exercise switch
+  }, []); // empty deps — camera mounts/unmounts exactly once
 
   return (
     <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200">
@@ -185,7 +189,9 @@ export default function PoseEngine({ onPoseResults, selectedExercise = 'BICEP_CU
       {cameraError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-red-400 p-4 text-center">
           <p className="font-semibold text-lg">{cameraError}</p>
-          <p className="text-sm text-slate-400 mt-2">Close Zoom/Teams/other browser tabs and refresh.</p>
+          <p className="text-sm text-slate-400 mt-2">
+            Close Zoom/Teams/other browser tabs and refresh.
+          </p>
         </div>
       )}
     </div>

@@ -3,7 +3,17 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Camera, Volume2, VolumeX, CheckCircle2, RotateCcw, Save, ArrowLeft, Target, Timer, Zap, AlertCircle } from 'lucide-react';
 import PoseEngine from '../components/PoseEngine';
-import { evaluateRepetition, EXERCISE_CONFIGS } from '../utils/exerciseRules';
+import { evaluateRepetition } from '../utils/exerciseRules';
+
+// Ideal peak-flexion targets per exercise (degrees) — used to score form quality.
+// A rep that reaches within ±15° of the target scores 100%; each degree beyond
+// that costs 2 points, floored at 0.
+const IDEAL_PEAK_ANGLE = {
+  BICEP_CURL:     45,   // full curl — elbow fully flexed
+  SQUAT:          90,   // thigh parallel — knee at 90°
+  KNEE_EXTENSION: 160,  // leg fully extended
+};
+const FORM_TOLERANCE_DEG = 15;  // degrees of leeway before penalty kicks in
 
 const TrackSession = () => {
   const navigate = useNavigate();
@@ -28,6 +38,10 @@ const TrackSession = () => {
     sessionDuration: 0,
     maxFlexionAngle: 0,
     repState: 'DOWN',
+    // Running totals for true avgAngle and form score calculations
+    _angleSamples: 0,
+    _angleSum: 0,
+    _repFormScores: [],
   });
 
   // Timer logic
@@ -91,14 +105,37 @@ const TrackSession = () => {
       if (isRepComplete || feedback.toLowerCase().includes('good')) fType = 'success';
       else if (feedback.toLowerCase().includes('further') || feedback.toLowerCase().includes('lower')) fType = 'warning';
 
+      // --- True running average angle ---
+      const newAngleSum = prev._angleSum + angle;
+      const newAngleSamples = prev._angleSamples + 1;
+
+      // --- Per-rep form score based on peak flexion quality ---
+      // When a rep completes, score how close we got to the ideal peak angle.
+      let repFormScores = prev._repFormScores;
+      if (isRepComplete) {
+        const ideal = IDEAL_PEAK_ANGLE[selectedExercise] ?? 90;
+        const deviation = Math.abs(prev.maxFlexionAngle - ideal);
+        const repScore = Math.max(0, 100 - Math.max(0, deviation - FORM_TOLERANCE_DEG) * 2);
+        repFormScores = [...prev._repFormScores, repScore];
+      }
+
+      // Session-level form score = average of all completed rep scores (or 100 if no reps yet)
+      const newFormScore = repFormScores.length > 0
+        ? Math.round(repFormScores.reduce((a, b) => a + b, 0) / repFormScores.length)
+        : prev.formScore;
+
       return {
         ...prev,
-        angle: angle,
+        angle,
         maxFlexionAngle: Math.max(prev.maxFlexionAngle, angle),
         repState: newState,
         repCount: isRepComplete ? prev.repCount + 1 : prev.repCount,
         feedback: feedback || prev.feedback,
-        feedbackType: fType
+        feedbackType: fType,
+        formScore: newFormScore,
+        _angleSum: newAngleSum,
+        _angleSamples: newAngleSamples,
+        _repFormScores: repFormScores,
       };
     });
   }, [isSessionActive, selectedExercise, isMuted]);
@@ -133,19 +170,26 @@ const TrackSession = () => {
       sessionDuration: 0,
       maxFlexionAngle: 0,
       repState: 'DOWN',
+      _angleSamples: 0,
+      _angleSum: 0,
+      _repFormScores: [],
     }));
     setIsSessionActive(true);
   };
 
   const handleFinishSession = async () => {
     setIsSessionActive(false);
+    // Compute true average angle from running totals
+    const trueAvgAngle = sessionMetrics._angleSamples > 0
+      ? Math.round(sessionMetrics._angleSum / sessionMetrics._angleSamples)
+      : Math.round(sessionMetrics.maxFlexionAngle / 2);
     try {
       await axios.post(`${API_URL}/api/sessions`, {
         patientId,
         exerciseType: selectedExercise,
         totalReps: sessionMetrics.repCount,
         targetReps: sessionMetrics.targetReps,
-        avgAngle: Math.round(sessionMetrics.maxFlexionAngle / 2),
+        avgAngle: trueAvgAngle,
         maxFlexionAngle: Math.round(sessionMetrics.maxFlexionAngle),
         formAccuracyScore: sessionMetrics.formScore,
         durationSeconds: sessionMetrics.sessionDuration
@@ -162,14 +206,6 @@ const TrackSession = () => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
-  };
-
-  // Convert internal object structure to flat landmarks array required by PoseEngine
-  const getTargetLandmarks = () => {
-    const l = EXERCISE_CONFIGS[selectedExercise]?.landmarks;
-    if (!l) return { a: 12, b: 14, c: 16 }; // Fallback to arms
-    const values = Object.values(l);
-    return { a: values[0], b: values[1], c: values[2] };
   };
 
   const getFeedbackBannerStyle = () => {
@@ -262,9 +298,9 @@ const TrackSession = () => {
         <div className="lg:col-span-2 clinical-card overflow-hidden relative flex flex-col bg-slate-900 border-0 shadow-lg">
           <div className="flex-grow relative h-full">
             <PoseEngine 
-              isActive={isSessionActive} 
+              isActive={isSessionActive}
+              selectedExercise={selectedExercise}
               onPoseResults={handlePoseUpdate}
-              targetLandmarks={getTargetLandmarks()}
             />
 
             {/* Glassmorphism HUD Overlays */}
