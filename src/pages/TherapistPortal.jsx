@@ -159,17 +159,7 @@ const TherapistPortal = () => {
           <p className="text-slate-500 text-lg mt-1 font-medium">{patients.length} Active Patients Under Supervision</p>
         </div>
         
-        <div className="flex gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search patients..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488] shadow-sm w-full md:w-64"
-            />
-          </div>
+        <div className="flex gap-4 items-center">
           <button 
             onClick={fetchPatients}
             disabled={isLoading}
@@ -186,78 +176,33 @@ const TherapistPortal = () => {
         </div>
       </section>
 
-      {/* 2. Patient Roster Grid / Table */}
-      <section className="clinical-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Patient Name & ID</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned Prescriptions</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Overall Status</th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
-                    <div className="flex justify-center mb-4">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0D9488]"></div>
-                    </div>
-                    Loading patients...
-                  </td>
-                </tr>
-              ) : filteredPatients.length > 0 ? (
-                filteredPatients.map(patient => (
-                  <tr key={patient.patientId} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-bold text-[#0F172A]">{patient.name}</div>
-                      <div className="text-sm font-medium text-slate-500">ID: {patient.patientId}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-700">
-                      {patient.prescriptions?.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {patient.prescriptions.map((p, idx) => (
-                            <div key={idx} className="flex items-center gap-2 text-xs">
-                              <FileText size={14} className="text-[#0D9488]" />
-                              {p.exerciseType.replace('_', ' ')}: {p.targetSets}x{p.targetReps}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 italic text-xs">No active prescriptions</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getComplianceBadge(patient.compliance)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        onClick={() => setSelectedPatient(patient)}
-                        className="text-[#0D9488] hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-2"
-                      >
-                        <Activity size={16} /> Manage
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-slate-500 font-medium">
-                    No patients match your search.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* 2. Patient Selector */}
+      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row md:items-center gap-4">
+        <label className="text-sm font-bold text-slate-500 uppercase tracking-wide">Select Patient</label>
+        <div className="relative flex-grow max-w-md">
+          <select 
+            className="w-full border border-slate-200 rounded-lg px-4 py-3 font-bold text-[#0F172A] outline-none focus:border-[#0D9488] bg-slate-50 transition-colors cursor-pointer appearance-none"
+            value={selectedPatient?.patientId || ''}
+            onChange={(e) => {
+              const patient = patients.find(p => p.patientId === e.target.value);
+              setSelectedPatient(patient || null);
+            }}
+          >
+            <option value="">-- Choose a Patient --</option>
+            {patients.map(p => (
+              <option key={p.patientId} value={p.patientId}>{p.name} ({p.patientId})</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+            <Sliders size={16} />
+          </div>
         </div>
       </section>
 
-      {/* 3. Patient Detail / Update Prescription Modal */}
+      {/* 3. Patient Detail / Update Prescription View */}
       {selectedPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-slate-200 flex flex-col relative">
+        <div className="animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full border border-slate-200 flex flex-col relative overflow-hidden">
             
             <button 
               onClick={() => setSelectedPatient(null)}
@@ -436,7 +381,6 @@ const TherapistPortal = () => {
                 </div>
               )}
             </div>
-          </div>
         </div>
       )}
 

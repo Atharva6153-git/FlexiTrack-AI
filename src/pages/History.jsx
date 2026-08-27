@@ -12,14 +12,14 @@ const EXERCISE_LABELS = {
 };
 
 const History = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const patientId = user?.uid;
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-  if (user?.role === 'therapist') {
+  if (role === 'therapist') {
     return <Navigate to="/therapist" replace />;
   }
 
