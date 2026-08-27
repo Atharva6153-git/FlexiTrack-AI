@@ -17,7 +17,7 @@ const History = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const patientId = user?.uid;
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 
   useEffect(() => {

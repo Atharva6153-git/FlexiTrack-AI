@@ -244,6 +244,7 @@ Visit `http://localhost:5173` and sign up as either a **Patient** or a **Therapi
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_atlas_connection_string
+CLIENT_URL=http://localhost:5173,https://flexi-track-ai.vercel.app
 ```
 
 **Frontend (`.env` at project root)**

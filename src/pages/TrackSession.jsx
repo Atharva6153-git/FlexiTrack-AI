@@ -25,7 +25,7 @@ const TrackSession = () => {
   const [selectedExercise, setSelectedExercise] = useState(defaultExercise);
   // Use Firebase UID as patientId — guaranteed unique and tied to the logged-in user
   const patientId = user?.uid;
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const [prescriptions, setPrescriptions] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);

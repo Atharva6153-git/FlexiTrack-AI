@@ -11,7 +11,7 @@ const Dashboard = () => {
 
   // Use Firebase UID as patientId
   const patientId = user?.uid;
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   const [recentSessions, setRecentSessions] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
