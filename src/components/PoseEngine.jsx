@@ -22,6 +22,7 @@ export default function PoseEngine({
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const retryCameraRef = useRef(null);
   const hasStarted = useRef(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [cameraError, setCameraError] = useState(null);
@@ -120,8 +121,8 @@ export default function PoseEngine({
     // webcams (driver not ready yet). Any other error (NotAllowedError, etc.)
     // is permanent and should surface immediately without retrying.
     const RETRYABLE_ERRORS = new Set(['AbortError', 'NotReadableError']);
-    const RETRY_DELAY_MS = 1000;
-    const MAX_ATTEMPTS = 2;
+    const RETRY_DELAY_MS = 2000;
+    const MAX_ATTEMPTS = 4;
 
     const acquireStream = async () => {
       let lastErr;
@@ -181,8 +182,8 @@ export default function PoseEngine({
         // selectedExercise + isActive) always runs, without re-mounting.
         pose.onResults((results) => onResultsRef.current(results));
 
-        // acquireStream handles AbortError/NotReadableError with one automatic
-        // retry; all other errors propagate straight to the outer catch.
+        // acquireStream handles transient camera startup errors with retries;
+        // all other errors propagate straight to the outer catch.
         const stream = await acquireStream();
         streamRef.current = stream;
 
@@ -207,6 +208,17 @@ export default function PoseEngine({
       }
     };
 
+    retryCameraRef.current = () => {
+      started = false;
+      setIsLoaded(false);
+      setCameraError(null);
+      if (pose) {
+        pose.close();
+        pose = null;
+      }
+      startCamera();
+    };
+
     startCamera();
 
     return () => {
@@ -216,6 +228,7 @@ export default function PoseEngine({
         streamRef.current = null;
       }
       if (pose) pose.close();
+      retryCameraRef.current = null;
       // Do NOT reset hasStarted.current here — resetting it in cleanup is
       // what allowed Strict Mode's double-invoke to bypass the guard and call
       // startCamera() multiple times. The ref stays true for the component's
@@ -240,6 +253,13 @@ export default function PoseEngine({
           <p className="text-sm text-slate-400 mt-2">
             Close Zoom/Teams/other browser tabs and refresh.
           </p>
+          <button
+            type="button"
+            onClick={() => retryCameraRef.current?.()}
+            className="mt-4 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 transition-colors"
+          >
+            Retry Camera
+          </button>
         </div>
       )}
     </div>
