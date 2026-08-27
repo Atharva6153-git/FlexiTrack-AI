@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { TrendingUp, BarChart3, Calendar, Filter, Clock, Award, Activity, Play } from 'lucide-react';
+import { TrendingUp, BarChart3, Calendar, Filter, Clock, Award, Activity, Play, FileText } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 
@@ -219,34 +219,57 @@ const History = () => {
               <tbody className="bg-white divide-y divide-slate-100">
                 {/* Sort desc for table view (newest first) */}
                 {[...filteredSessions].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map((session) => (
-                  <tr key={session._id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                      {new Date(session.createdAt).toLocaleString(undefined, { 
-                        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-[#0D9488]">
-                      {EXERCISE_LABELS[session.exerciseType] || session.exerciseType}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-medium">
-                      {session.totalReps} / {session.targetReps || '-'} Reps
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-bold">
-                      {session.maxFlexionAngle}°
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        session.formAccuracyScore >= 90 ? 'bg-emerald-100 text-emerald-800' : 
-                        session.formAccuracyScore >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {session.formAccuracyScore}% Score
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 flex items-center gap-1.5">
-                      <Clock size={14} />
-                      {formatDuration(session.durationSeconds)}
-                    </td>
-                  </tr>
+                  <React.Fragment key={session._id}>
+                    <tr className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                        {new Date(session.createdAt).toLocaleString(undefined, { 
+                          month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
+                        })}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-[#0D9488]">
+                        {EXERCISE_LABELS[session.exerciseType] || session.exerciseType}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-medium">
+                        {session.totalReps} / {session.targetReps || '-'} Reps
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-bold">
+                        {session.maxFlexionAngle}°
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          session.formAccuracyScore >= 90 ? 'bg-emerald-100 text-emerald-800' : 
+                          session.formAccuracyScore >= 75 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {session.formAccuracyScore}% Score
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 flex items-center gap-1.5">
+                        <Clock size={14} />
+                        {formatDuration(session.durationSeconds)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan="6" className="px-6 py-3 bg-slate-50 border-b border-slate-100">
+                        {session.feedback && session.feedback.reviewedBy ? (
+                          <div className="flex gap-4 items-start">
+                            <div className="bg-teal-100 text-teal-800 p-2 rounded-lg shrink-0 mt-1">
+                              <FileText size={16} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-extrabold text-teal-800 uppercase tracking-wider mb-1">Therapist Feedback</p>
+                              {session.feedback.mistakes && <p className="text-sm text-slate-700 mb-1"><span className="font-semibold">Mistakes:</span> {session.feedback.mistakes}</p>}
+                              {session.feedback.improvements && <p className="text-sm text-slate-700"><span className="font-semibold">Improvements:</span> {session.feedback.improvements}</p>}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-slate-400 text-sm italic">
+                            <FileText size={14} />
+                            Not yet reviewed by therapist
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

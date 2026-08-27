@@ -154,4 +154,38 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/sessions/:id/feedback
+// Add or update therapist feedback for a session
+router.patch('/:id/feedback', async (req, res) => {
+  try {
+    const { mistakes, improvements, reviewedBy } = req.body;
+    
+    if (!reviewedBy) {
+      return res.status(400).json({ error: 'reviewedBy is required' });
+    }
+
+    const updatedSession = await Session.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          'feedback.mistakes': mistakes,
+          'feedback.improvements': improvements,
+          'feedback.reviewedBy': reviewedBy,
+          'feedback.reviewedAt': new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedSession) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.status(200).json(updatedSession);
+  } catch (error) {
+    console.error('Error adding feedback:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

@@ -34,6 +34,12 @@ const sessionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  feedback: {
+    mistakes: { type: String },
+    improvements: { type: String },
+    reviewedBy: { type: String },
+    reviewedAt: { type: Date }
+  }
 }, {
   // Allow createdAt to be set explicitly (e.g. for simulation / backfill)
   timestamps: false,

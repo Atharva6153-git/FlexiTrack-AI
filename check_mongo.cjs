@@ -5,9 +5,14 @@ async function run() {
   await mongoose.connect(uri);
   const db = mongoose.connection.db;
   const patients = db.collection('patients');
+  
+  // Delete users that don't look like the main user
+  const result = await patients.deleteMany({ name: { $in: ['test123', 'Test Therapist'] } });
+  console.log(`Deleted ${result.deletedCount} old test users.`);
+  
   const docs = await patients.find({}).toArray();
-  console.log(`Found ${docs.length} patients:`);
-  docs.forEach(doc => console.log(`- ${doc.name} (${doc.email || 'no email'}) [role: ${doc.role}] [id: ${doc._id}]`));
+  console.log(`Remaining ${docs.length} patients:`);
+  docs.forEach(doc => console.log(`- ${doc.name} [role: ${doc.role}]`));
   await mongoose.disconnect();
 }
 run().catch(console.dir);

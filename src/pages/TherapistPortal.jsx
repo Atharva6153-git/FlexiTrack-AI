@@ -8,6 +8,10 @@ const TherapistPortal = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
+  
+  const [selectedPatientSessions, setSelectedPatientSessions] = useState([]);
+  const [isSessionsLoading, setIsSessionsLoading] = useState(false);
+  const [feedbackForm, setFeedbackForm] = useState({ sessionId: null, mistakes: '', improvements: '' });
 
   const THERAPIST_ID = 'therapist_1';
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -82,6 +86,39 @@ const TherapistPortal = () => {
     } catch(err) {
       console.error(err);
       alert("Failed to update prescription.");
+    }
+  };
+
+  useEffect(() => {
+    if (selectedPatient) {
+      setIsSessionsLoading(true);
+      axios.get(`${API_URL}/api/sessions/patient/${selectedPatient.patientId}`)
+        .then(res => setSelectedPatientSessions(res.data))
+        .catch(err => console.error(err))
+        .finally(() => setIsSessionsLoading(false));
+    } else {
+      setSelectedPatientSessions([]);
+      setFeedbackForm({ sessionId: null, mistakes: '', improvements: '' });
+    }
+  }, [selectedPatient, API_URL]);
+
+  const handleSaveFeedback = async (sessionId) => {
+    try {
+      await axios.patch(`${API_URL}/api/sessions/${sessionId}/feedback`, {
+        mistakes: feedbackForm.mistakes,
+        improvements: feedbackForm.improvements,
+        reviewedBy: THERAPIST_ID
+      });
+      setSelectedPatientSessions(prev => prev.map(s => {
+        if (s._id === sessionId) {
+          return { ...s, feedback: { mistakes: feedbackForm.mistakes, improvements: feedbackForm.improvements, reviewedBy: THERAPIST_ID } };
+        }
+        return s;
+      }));
+      setFeedbackForm({ sessionId: null, mistakes: '', improvements: '' });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save feedback');
     }
   };
 
@@ -293,6 +330,100 @@ const TherapistPortal = () => {
                 </div>
               </div>
 
+            </div>
+            
+            {/* Bottom Row: Recent Sessions & Feedback */}
+            <div className="p-8 bg-white border-t border-slate-100 flex-grow">
+              <h3 className="text-lg font-bold text-[#0F172A] mb-4 flex items-center gap-2">
+                <FileText size={20} className="text-[#0D9488]" />
+                Recent Sessions & Feedback
+              </h3>
+              {isSessionsLoading ? (
+                <div className="flex justify-center my-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0D9488]"></div>
+                </div>
+              ) : selectedPatientSessions.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {selectedPatientSessions.map(session => (
+                    <div key={session._id} className="border border-slate-200 rounded-xl p-5 hover:shadow-sm transition-shadow bg-white">
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                          {session.exerciseType.replace('_', ' ')}
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${session.formAccuracyScore >= 90 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {session.formAccuracyScore}% Form
+                          </span>
+                        </div>
+                        <div className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
+                          <Activity size={14} className="text-slate-400" />
+                          {new Date(session.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-4 mb-4 text-sm text-slate-600 font-medium bg-slate-50 rounded-lg p-3 border border-slate-100">
+                        <div><span className="text-slate-400 block text-xs uppercase tracking-wider mb-0.5">Peak Angle</span> {session.maxFlexionAngle}°</div>
+                        <div><span className="text-slate-400 block text-xs uppercase tracking-wider mb-0.5">Volume</span> {session.totalReps} Reps</div>
+                      </div>
+                      
+                      {feedbackForm.sessionId === session._id ? (
+                        <div className="bg-teal-50/50 p-4 rounded-xl border border-teal-100 space-y-3">
+                          <div>
+                            <label className="block text-xs font-bold text-teal-800 uppercase tracking-wider mb-1.5">Mistakes Noticed</label>
+                            <textarea 
+                              className="w-full border border-teal-200 rounded-lg p-3 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white" 
+                              rows="2"
+                              placeholder="e.g. Elbows flaring out..."
+                              value={feedbackForm.mistakes}
+                              onChange={e => setFeedbackForm({...feedbackForm, mistakes: e.target.value})}
+                            ></textarea>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-teal-800 uppercase tracking-wider mb-1.5">Suggested Improvements</label>
+                            <textarea 
+                              className="w-full border border-teal-200 rounded-lg p-3 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white" 
+                              rows="2"
+                              placeholder="e.g. Keep elbows tucked to sides..."
+                              value={feedbackForm.improvements}
+                              onChange={e => setFeedbackForm({...feedbackForm, improvements: e.target.value})}
+                            ></textarea>
+                          </div>
+                          <div className="flex gap-3 pt-2">
+                            <button onClick={() => handleSaveFeedback(session._id)} className="bg-[#0D9488] hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors">Save Feedback</button>
+                            <button onClick={() => setFeedbackForm({ sessionId: null, mistakes: '', improvements: '' })} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition-colors">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          {session.feedback && session.feedback.reviewedBy ? (
+                            <div className="bg-teal-50 border border-teal-100 p-4 rounded-xl mb-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <CheckCircle2 size={16} className="text-teal-600" />
+                                <p className="text-xs font-extrabold text-teal-800 uppercase tracking-wider">Your Feedback</p>
+                              </div>
+                              {session.feedback.mistakes && <p className="text-sm text-teal-900 mb-2"><span className="font-semibold block text-xs text-teal-700 mb-0.5">Mistakes:</span> {session.feedback.mistakes}</p>}
+                              {session.feedback.improvements && <p className="text-sm text-teal-900"><span className="font-semibold block text-xs text-teal-700 mb-0.5">Improvements:</span> {session.feedback.improvements}</p>}
+                            </div>
+                          ) : null}
+                          <button 
+                            onClick={() => setFeedbackForm({ 
+                              sessionId: session._id, 
+                              mistakes: session.feedback?.mistakes || '', 
+                              improvements: session.feedback?.improvements || '' 
+                            })} 
+                            className="text-[#0D9488] hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-2 text-sm font-bold"
+                          >
+                            <FileText size={16} />
+                            {session.feedback && session.feedback.reviewedBy ? 'Edit Feedback' : 'Add Feedback'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-slate-500 font-medium">No sessions recorded by this patient yet.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

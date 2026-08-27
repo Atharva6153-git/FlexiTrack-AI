@@ -4,7 +4,7 @@ import { LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const RootLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -49,16 +49,18 @@ const RootLayout = () => {
               >
                 Dashboard
               </NavLink>
-              <NavLink
-                to="/track"
-                className={({ isActive }) =>
-                  `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive ? 'text-blue-700 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50'
-                  }`
-                }
-              >
-                Live Workout
-              </NavLink>
+              {role !== 'therapist' && (
+                <NavLink
+                  to="/track"
+                  className={({ isActive }) =>
+                    `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive ? 'text-blue-700 bg-blue-50' : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50'
+                    }`
+                  }
+                >
+                  Live Workout
+                </NavLink>
+              )}
               <NavLink
                 to="/history"
                 className={({ isActive }) =>
