@@ -19,9 +19,6 @@ const History = () => {
   const patientId = user?.uid;
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-  if (role === 'therapist') {
-    return <Navigate to="/therapist" replace />;
-  }
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -83,6 +80,11 @@ const History = () => {
     const s = seconds % 60;
     return `${m}m ${s}s`;
   };
+
+  // Therapist guard must be after all hooks (React Rules of Hooks)
+  if (role === 'therapist') {
+    return <Navigate to="/therapist" replace />;
+  }
 
   if (isLoading) {
     return (
