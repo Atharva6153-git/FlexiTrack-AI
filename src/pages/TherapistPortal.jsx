@@ -13,7 +13,7 @@ const TherapistPortal = () => {
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({ sessionId: null, mistakes: '', improvements: '' });
 
-  const THERAPIST_ID = 'therapist_1';
+  const THERAPIST_ID = 'therapist_default';
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   const fetchPatients = async () => {
@@ -50,6 +50,10 @@ const TherapistPortal = () => {
 
   useEffect(() => {
     fetchPatients();
+
+    const handleFocus = () => fetchPatients();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const handleCreatePatient = async (e) => {
@@ -166,6 +170,13 @@ const TherapistPortal = () => {
               className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:border-[#0D9488] focus:ring-1 focus:ring-[#0D9488] shadow-sm w-full md:w-64"
             />
           </div>
+          <button 
+            onClick={fetchPatients}
+            disabled={isLoading}
+            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold shadow-sm transition-all flex items-center gap-2"
+          >
+            <Activity size={18} className={isLoading ? "animate-spin" : ""} /> Refresh
+          </button>
           <button 
             onClick={() => setIsNewPatientModalOpen(true)}
             className="bg-[#0D9488] hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-all flex items-center gap-2"

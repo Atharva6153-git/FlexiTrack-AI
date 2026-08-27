@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { TrendingUp, BarChart3, Calendar, Filter, Clock, Award, Activity, Play, FileText } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +18,10 @@ const History = () => {
   const [filter, setFilter] = useState('ALL');
   const patientId = user?.uid;
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  if (user?.role === 'therapist') {
+    return <Navigate to="/therapist" replace />;
+  }
 
   useEffect(() => {
     const fetchHistory = async () => {

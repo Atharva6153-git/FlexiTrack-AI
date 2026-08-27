@@ -39,7 +39,8 @@ const TrackSession = () => {
     feedbackType: 'info', // 'info', 'success', 'warning'
     formScore: 100,
     sessionDuration: 0,
-    maxFlexionAngle: 0,
+    maxFlexionAngle: null,
+    currentRepPeak: null,
     repState: 'DOWN',
     // Running totals for true avgAngle and form score calculations
     _angleSamples: 0,
@@ -112,12 +113,31 @@ const TrackSession = () => {
       const newAngleSum = prev._angleSum + angle;
       const newAngleSamples = prev._angleSamples + 1;
 
+      // --- Per-rep peak tracking ---
+      let newRepPeak = prev.currentRepPeak;
+      let newGlobalPeak = prev.maxFlexionAngle;
+      
+      // Determine if we seek min or max based on the exercise.
+      // BICEP_CURL (45) and SQUAT (90) seek minimum angles. KNEE_EXTENSION (160) seeks maximum.
+      const isMaxSeeking = selectedExercise === 'KNEE_EXTENSION';
+      
+      if (newRepPeak === null) {
+        newRepPeak = angle;
+      } else {
+        newRepPeak = isMaxSeeking ? Math.max(newRepPeak, angle) : Math.min(newRepPeak, angle);
+      }
+      
+      if (newGlobalPeak === null) {
+        newGlobalPeak = angle;
+      } else {
+        newGlobalPeak = isMaxSeeking ? Math.max(newGlobalPeak, angle) : Math.min(newGlobalPeak, angle);
+      }
+
       // --- Per-rep form score based on peak flexion quality ---
-      // When a rep completes, score how close we got to the ideal peak angle.
       let repFormScores = prev._repFormScores;
       if (isRepComplete) {
         const ideal = IDEAL_PEAK_ANGLE[selectedExercise] ?? 90;
-        const deviation = Math.abs(prev.maxFlexionAngle - ideal);
+        const deviation = Math.abs(newRepPeak - ideal);
         const repScore = Math.max(0, 100 - Math.max(0, deviation - FORM_TOLERANCE_DEG) * 2);
         repFormScores = [...prev._repFormScores, repScore];
       }
@@ -130,7 +150,8 @@ const TrackSession = () => {
       return {
         ...prev,
         angle,
-        maxFlexionAngle: Math.max(prev.maxFlexionAngle, angle),
+        maxFlexionAngle: newGlobalPeak,
+        currentRepPeak: isRepComplete ? angle : newRepPeak,
         repState: newState,
         repCount: isRepComplete ? prev.repCount + 1 : prev.repCount,
         feedback: feedback || prev.feedback,
@@ -171,7 +192,8 @@ const TrackSession = () => {
       feedbackType: 'info',
       formScore: 100,
       sessionDuration: 0,
-      maxFlexionAngle: 0,
+      maxFlexionAngle: null,
+      currentRepPeak: null,
       repState: 'DOWN',
       _angleSamples: 0,
       _angleSum: 0,
@@ -193,7 +215,7 @@ const TrackSession = () => {
         totalReps: sessionMetrics.repCount,
         targetReps: sessionMetrics.targetReps,
         avgAngle: trueAvgAngle,
-        maxFlexionAngle: Math.round(sessionMetrics.maxFlexionAngle),
+        maxFlexionAngle: sessionMetrics.maxFlexionAngle !== null ? Math.round(sessionMetrics.maxFlexionAngle) : 0,
         formAccuracyScore: sessionMetrics.formScore,
         durationSeconds: sessionMetrics.sessionDuration
       });
