@@ -12,10 +12,11 @@ const app = express();
 connectDB();
 
 // Middleware
-const allowedClientOrigins = (process.env.CLIENT_URL || 'http://localhost:5173,https://flexi-track-ai.vercel.app')
+const configuredClientOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
   .map((url) => url.trim())
   .filter(Boolean);
+const allowedClientOrigins = [...new Set([...configuredClientOrigins, 'https://flexi-track-ai.vercel.app'])];
 app.use(cors({
   origin: (origin, callback) => {
     const isLocalDevelopmentOrigin = /^http:\/\/localhost:\d+$/.test(origin || '');
