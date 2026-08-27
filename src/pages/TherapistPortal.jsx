@@ -381,6 +381,7 @@ const TherapistPortal = () => {
                 </div>
               )}
             </div>
+          </div>
         </div>
       )}
 
