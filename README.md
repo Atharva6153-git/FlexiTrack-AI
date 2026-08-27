@@ -1,6 +1,8 @@
-# FlexiTrack AI
+<div align="center">
 
-**AI-powered rehabilitation and physical therapy companion** — tracks joint angles and exercise repetitions in real time using computer vision, connects patients with a supervising therapist, and turns raw webcam movement into structured recovery data.
+# 💪🩺 FlexiTrack AI 🎥✨
+
+**AI-Powered Rehab, One Rep at a Time.** *Track it. Fix it. Recover better.* 🚀
 
 <p>
   <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React"/>
@@ -14,6 +16,12 @@
   <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel"/>
   <img src="https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white" alt="Render"/>
 </p>
+
+</div>
+
+---
+
+**AI-powered rehabilitation and physical therapy companion** — tracks joint angles and exercise repetitions in real time using computer vision, connects patients with a supervising therapist, and turns raw webcam movement into structured recovery data.
 
 ---
 
