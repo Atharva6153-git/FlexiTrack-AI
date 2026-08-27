@@ -26,10 +26,11 @@ const DEFAULT_THERAPIST_ID = 'therapist_default';
  * Called after every successful sign-in. Safe to call multiple times —
  * the backend returns 400 on duplicate patientId, which we silently ignore.
  */
-const ensurePatientRecord = async (firebaseUser) => {
+const ensurePatientRecord = async (firebaseUser, selectedRole = 'patient') => {
   const requestBody = {
     patientId: firebaseUser.uid,
     name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+    role: selectedRole,
     therapistId: DEFAULT_THERAPIST_ID,
   };
 
@@ -99,7 +100,7 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const registerWithEmail = async (name, email, password) => {
+  const registerWithEmail = async (name, email, password, selectedRole) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName: name });
     localStorage.setItem('ft_login_time', Date.now().toString());
@@ -108,7 +109,7 @@ export const AuthProvider = ({ children }) => {
       uid: credential.user.uid,
       email: credential.user.email,
       displayName: name,
-    });
+    }, selectedRole);
     setRole(patient?.role || 'patient');
     setUser({ ...credential.user, displayName: name });
     return credential;
@@ -128,7 +129,6 @@ export const AuthProvider = ({ children }) => {
     user,
     role,
     loading,
-    setRole,
     loginWithEmail,
     registerWithEmail,
     loginWithGoogle,

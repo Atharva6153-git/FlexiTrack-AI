@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, role, setRole } = useAuth();
+  const { user } = useAuth();
   const [selectedExercise, setSelectedExercise] = useState('BICEP_CURL');
 
   // Use Firebase UID as patientId
@@ -54,10 +54,6 @@ const Dashboard = () => {
     navigate('/track', { state: { defaultExercise: selectedExercise } });
   };
 
-  const toggleDevRole = () => {
-    setRole(role === 'therapist' ? 'patient' : 'therapist');
-  };
-
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       
@@ -75,15 +71,6 @@ const Dashboard = () => {
           </div>
           <p className="text-slate-500 text-lg">Here is your rehabilitation overview for this week.</p>
         </div>
-        {import.meta.env.DEV && (
-          <button
-            type="button"
-            onClick={toggleDevRole}
-            className="self-start rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
-          >
-            Dev role: {role} (switch)
-          </button>
-        )}
       </section>
 
       {/* 2. Top Metric Cards Grid */}

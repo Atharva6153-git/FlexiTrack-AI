@@ -27,6 +27,7 @@ const Login = () => {
   const [name, setName]           = useState('');
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
+  const [selectedRole, setSelectedRole] = useState('patient');
   const [showPass, setShowPass]   = useState(false);
   const [error, setError]         = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,7 +38,7 @@ const Login = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const reset = () => { setError(''); setName(''); setEmail(''); setPassword(''); };
+  const reset = () => { setError(''); setName(''); setEmail(''); setPassword(''); setSelectedRole('patient'); };
 
   const switchTab = (t) => { setTab(t); reset(); };
 
@@ -50,7 +51,7 @@ const Login = () => {
         await loginWithEmail(email, password);
       } else {
         if (!name.trim()) { setError('Please enter your full name.'); setIsSubmitting(false); return; }
-        await registerWithEmail(name.trim(), email, password);
+        await registerWithEmail(name.trim(), email, password, selectedRole);
       }
       navigate(from, { replace: true });
     } catch (err) {
@@ -172,6 +173,40 @@ const Login = () => {
                       />
                     </div>
                   </div>
+                )}
+
+                {/* Role — sign-up only; Google sign-ups default to patient */}
+                {tab === 'signup' && (
+                  <fieldset>
+                    <legend className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                      Account Type
+                    </legend>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: 'patient', label: 'Patient' },
+                        { value: 'therapist', label: 'Therapist' },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className={`flex items-center gap-2 border rounded-xl px-3 py-3 text-sm font-semibold cursor-pointer transition-colors ${
+                            selectedRole === option.value
+                              ? 'border-[#0D9488] bg-teal-50 text-teal-800'
+                              : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role"
+                            value={option.value}
+                            checked={selectedRole === option.value}
+                            onChange={(e) => setSelectedRole(e.target.value)}
+                            className="accent-[#0D9488]"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
                 )}
 
                 {/* Email */}
