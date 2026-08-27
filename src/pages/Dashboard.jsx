@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [recentSessions, setRecentSessions] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [allSessions, setAllSessions] = useState([]);
+  const [dailyStats, setDailyStats] = useState([]);
 
   const displayName = user?.displayName ?? user?.email?.split('@')[0] ?? 'there';
 
@@ -29,16 +30,59 @@ const Dashboard = () => {
           setSelectedExercise(patientRes.data.prescriptions[0].exerciseType);
         }
 
-        const sessionRes = await axios.get(`${API_URL}/api/sessions/patient/${patientId}`);
+        const [sessionRes, statsRes] = await Promise.all([
+          axios.get(`${API_URL}/api/sessions/patient/${patientId}`),
+          axios.get(`${API_URL}/api/sessions/patient/${patientId}/stats`),
+        ]);
         const sessions = sessionRes.data;
         setAllSessions(sessions);
         setRecentSessions(sessions.slice(0, 3));
+        setDailyStats(statsRes.data);
       } catch (err) {
         console.error("Error fetching dashboard data", err);
       }
     };
     fetchData();
   }, [patientId, API_URL]);
+
+  const dateKey = (date) => {
+    const value = new Date(date);
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const sessionDays = new Set(allSessions.map((session) => dateKey(session.createdAt)));
+  const today = new Date();
+  const currentStreak = (() => {
+    let streak = 0;
+    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    while (sessionDays.has(dateKey(day))) {
+      streak += 1;
+      day.setDate(day.getDate() - 1);
+    }
+    return streak;
+  })();
+
+  const chartDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - index));
+    const key = dateKey(day);
+    const stat = dailyStats.find((item) => dateKey(item._id) === key);
+    return {
+      key,
+      label: day.toLocaleDateString(undefined, { weekday: 'short' }),
+      angle: stat?.avgMaxFlexionAngle ?? null,
+    };
+  });
+
+  const chartMax = Math.max(180, ...chartDays.map((day) => day.angle || 0));
+  const chartPoints = chartDays.map((day, index) => ({
+    ...day,
+    x: 30 + (index * 460) / 6,
+    y: day.angle == null ? null : 170 - (day.angle / chartMax) * 150,
+  }));
+  const chartHasData = chartPoints.some((point) => point.angle != null);
 
   // Compute live stats from real sessions
   const totalSessions = allSessions.length;
@@ -91,7 +135,7 @@ const Dashboard = () => {
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Streak</p>
-            <p className="text-3xl font-bold text-[#0F172A]">5 <span className="text-sm font-medium text-slate-400 normal-case tracking-normal">Days</span></p>
+            <p className="text-3xl font-bold text-[#0F172A]">{currentStreak} <span className="text-sm font-medium text-slate-400 normal-case tracking-normal">Days</span></p>
           </div>
         </div>
 
@@ -164,49 +208,53 @@ const Dashboard = () => {
         <div className="clinical-card p-8 lg:col-span-2 flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-[#0F172A]">7-Day Range of Motion</h2>
-            <select className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 outline-none bg-slate-50">
-              <option>Elbow Flexion</option>
-              <option>Knee Flexion</option>
-            </select>
+            <span className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50">
+              All Exercises
+            </span>
           </div>
           
           <div className="flex-grow flex items-center justify-center min-h-[250px] relative">
-            {/* Embedded SVG Line Graph for Clinical Look */}
             <svg viewBox="0 0 500 200" className="w-full h-full drop-shadow-sm" preserveAspectRatio="none">
-              {/* Grid Lines */}
-              <line x1="0" y1="50" x2="500" y2="50" stroke="#F1F5F9" strokeWidth="2" />
-              <line x1="0" y1="100" x2="500" y2="100" stroke="#F1F5F9" strokeWidth="2" />
-              <line x1="0" y1="150" x2="500" y2="150" stroke="#F1F5F9" strokeWidth="2" />
-              
-              {/* Data Line */}
-              <path d="M 0 150 C 50 140, 100 130, 150 110 S 250 80, 300 70 S 400 40, 500 30" 
-                    fill="none" stroke="#0D9488" strokeWidth="4" strokeLinecap="round" />
-              
-              {/* Data Points */}
-              <circle cx="2" cy="150" r="5" fill="#FFFFFF" stroke="#0D9488" strokeWidth="3" />
-              <circle cx="150" cy="110" r="5" fill="#FFFFFF" stroke="#0D9488" strokeWidth="3" />
-              <circle cx="300" cy="70" r="5" fill="#FFFFFF" stroke="#0D9488" strokeWidth="3" />
-              <circle cx="498" cy="30" r="6" fill="#0D9488" stroke="#FFFFFF" strokeWidth="2" />
-              
-              {/* Trend Indicator Bubble */}
-              <rect x="435" y="0" width="60" height="26" rx="13" fill="#D1FAE5" />
-              <text x="465" y="17" fontSize="12" fontWeight="bold" fill="#047857" textAnchor="middle">+14°</text>
+              {[50, 100, 150].map((y) => (
+                <line key={y} x1="30" y1={y} x2="490" y2={y} stroke="#F1F5F9" strokeWidth="2" />
+              ))}
+              {chartPoints.slice(1).map((point, index) => {
+                const previous = chartPoints[index];
+                return previous.y == null || point.y == null ? null : (
+                  <line
+                    key={`${previous.key}-${point.key}`}
+                    x1={previous.x}
+                    y1={previous.y}
+                    x2={point.x}
+                    y2={point.y}
+                    stroke="#0D9488"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+              {chartPoints.map((point) => point.y == null ? null : (
+                <circle key={point.key} cx={point.x} cy={point.y} r="5" fill="#FFFFFF" stroke="#0D9488" strokeWidth="3" />
+              ))}
             </svg>
+
+            {!chartHasData && (
+              <p className="absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-400">
+                No range-of-motion data in the last 7 days.
+              </p>
+            )}
             
             {/* Y-Axis Mock Labels */}
             <div className="absolute left-0 top-0 h-[200px] flex flex-col justify-between py-0 text-xs font-semibold text-slate-400">
-              <span className="-mt-2">150°</span>
-              <span className="mt-5">100°</span>
-              <span className="mt-6">50°</span>
+              <span className="-mt-2">{Math.round(chartMax)}°</span>
+              <span className="mt-5">{Math.round(chartMax * 2 / 3)}°</span>
+              <span className="mt-6">{Math.round(chartMax / 3)}°</span>
               <span className="mb-[-5px]">0°</span>
             </div>
             
             {/* X-Axis Mock Labels */}
             <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs font-semibold text-slate-400 -mb-6 ml-8">
-              <span>Mon</span>
-              <span>Wed</span>
-              <span>Fri</span>
-              <span>Today</span>
+              {chartDays.map((day) => <span key={day.key}>{day.label}</span>)}
             </div>
           </div>
         </div>
