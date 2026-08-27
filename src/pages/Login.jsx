@@ -65,7 +65,7 @@ const Login = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(tab === 'signup' ? selectedRole : undefined);
       navigate(from, { replace: true });
     } catch (err) {
       setError(errorMessage(err));

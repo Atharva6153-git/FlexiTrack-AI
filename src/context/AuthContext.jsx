@@ -75,9 +75,17 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('ft_login_time');
           setUser(false);
         } else {
-          // Ensure the backend Patient record exists (no-op if already created)
-          const createdPatient = await ensurePatientRecord(firebaseUser);
-          const patient = createdPatient || await fetchPatientProfile(firebaseUser);
+          // Prevent race condition: if a sign-up is in progress, skip ensuring record here
+          if (localStorage.getItem('is_registering') === 'true') {
+            setUser(firebaseUser);
+            setLoading(false);
+            return;
+          }
+
+          let patient = await fetchPatientProfile(firebaseUser);
+          if (!patient) {
+            patient = await ensurePatientRecord(firebaseUser, 'patient');
+          }
           setRole(patient?.role || 'patient');
           setUser(firebaseUser);
         }
@@ -101,23 +109,40 @@ export const AuthProvider = ({ children }) => {
   };
 
   const registerWithEmail = async (name, email, password, selectedRole) => {
+    localStorage.setItem('is_registering', 'true');
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName: name });
-    localStorage.setItem('ft_login_time', Date.now().toString());
+    
     // Pass the updated user object (with displayName) to ensurePatientRecord
     const patient = await ensurePatientRecord({
       uid: credential.user.uid,
       email: credential.user.email,
       displayName: name,
     }, selectedRole);
+    
+    localStorage.setItem('ft_login_time', Date.now().toString());
+    localStorage.removeItem('is_registering');
+    
     setRole(patient?.role || 'patient');
     setUser({ ...credential.user, displayName: name });
     return credential;
   };
 
-  const loginWithGoogle = () => {
+  const loginWithGoogle = async (selectedRole) => {
+    localStorage.setItem('is_registering', 'true');
+    const credential = await signInWithPopup(auth, googleProvider);
+    
+    let patient = await fetchPatientProfile(credential.user);
+    if (!patient) {
+      patient = await ensurePatientRecord(credential.user, selectedRole || 'patient');
+    }
+    
     localStorage.setItem('ft_login_time', Date.now().toString());
-    return signInWithPopup(auth, googleProvider);
+    localStorage.removeItem('is_registering');
+    
+    setRole(patient?.role || 'patient');
+    setUser(credential.user);
+    return credential;
   };
 
   const logout = () => {
