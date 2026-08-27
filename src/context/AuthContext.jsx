@@ -23,8 +23,8 @@ const DEFAULT_THERAPIST_ID = 'therapist_default';
 
 /**
  * Ensures a Patient record exists in the backend for this Firebase user.
- * Called after every successful sign-in. Safe to call multiple times —
- * the backend returns 400 on duplicate patientId, which we silently ignore.
+ * Called after every successful sign-in. Safe to call multiple times because
+ * the backend upsert returns the existing record when patientId already exists.
  */
 const ensurePatientRecord = async (firebaseUser, selectedRole = 'patient') => {
   const requestBody = {
@@ -39,12 +39,12 @@ const ensurePatientRecord = async (firebaseUser, selectedRole = 'patient') => {
     const response = await axios.post(`${API_URL}/api/patients`, requestBody);
     return response.data;
   } catch (err) {
-    console.error('[AuthContext] POST /api/patients error response:', err.response?.data);
-    // 400 = patient already exists — that's fine, nothing to do
-    if (err?.response?.status !== 400) {
-      console.error('[AuthContext] ensurePatientRecord failed:', err.message);
-    }
-    return null;
+    console.error('[AuthContext] POST /api/patients failed:', {
+      status: err.response?.status,
+      data: err.response?.data,
+      message: err.message,
+    });
+    throw new Error(`Unable to create your patient profile: ${err.response?.data?.error || err.message}`);
   }
 };
 
@@ -110,39 +110,42 @@ export const AuthProvider = ({ children }) => {
 
   const registerWithEmail = async (name, email, password, selectedRole) => {
     localStorage.setItem('is_registering', 'true');
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(credential.user, { displayName: name });
-    
-    // Pass the updated user object (with displayName) to ensurePatientRecord
-    const patient = await ensurePatientRecord({
-      uid: credential.user.uid,
-      email: credential.user.email,
-      displayName: name,
-    }, selectedRole);
-    
-    localStorage.setItem('ft_login_time', Date.now().toString());
-    localStorage.removeItem('is_registering');
-    
-    setRole(patient?.role || 'patient');
-    setUser({ ...credential.user, displayName: name });
-    return credential;
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(credential.user, { displayName: name });
+
+      const patient = await ensurePatientRecord({
+        uid: credential.user.uid,
+        email: credential.user.email,
+        displayName: name,
+      }, selectedRole);
+
+      localStorage.setItem('ft_login_time', Date.now().toString());
+      setRole(patient.role);
+      setUser({ ...credential.user, displayName: name });
+      return credential;
+    } finally {
+      localStorage.removeItem('is_registering');
+    }
   };
 
   const loginWithGoogle = async (selectedRole) => {
     localStorage.setItem('is_registering', 'true');
-    const credential = await signInWithPopup(auth, googleProvider);
-    
-    let patient = await fetchPatientProfile(credential.user);
-    if (!patient) {
-      patient = await ensurePatientRecord(credential.user, selectedRole || 'patient');
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+
+      let patient = await fetchPatientProfile(credential.user);
+      if (!patient) {
+        patient = await ensurePatientRecord(credential.user, selectedRole || 'patient');
+      }
+
+      localStorage.setItem('ft_login_time', Date.now().toString());
+      setRole(patient.role);
+      setUser(credential.user);
+      return credential;
+    } finally {
+      localStorage.removeItem('is_registering');
     }
-    
-    localStorage.setItem('ft_login_time', Date.now().toString());
-    localStorage.removeItem('is_registering');
-    
-    setRole(patient?.role || 'patient');
-    setUser(credential.user);
-    return credential;
   };
 
   const logout = () => {
