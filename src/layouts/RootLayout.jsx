@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.svg';
 
 const RootLayout = () => {
   const { user, role, logout } = useAuth();
@@ -31,9 +32,9 @@ const RootLayout = () => {
             <div className="flex-shrink-0 flex items-center">
               <Link
                 to="/"
-                className="text-2xl font-extrabold text-blue-700 tracking-tight hover:text-blue-800 transition-colors"
+                className="flex items-center hover:opacity-80 transition-opacity"
               >
-                FlexiTrack AI
+                <img src={logo} alt="FlexiTrack AI" className="h-10 w-auto" />
               </Link>
             </div>
 

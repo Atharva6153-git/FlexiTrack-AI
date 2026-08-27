@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, Camera, TrendingUp, CheckCircle2, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.svg';
 
 const Home = () => {
   const { user, loading } = useAuth();
@@ -16,8 +17,8 @@ const Home = () => {
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="text-2xl font-extrabold text-blue-700 tracking-tight hover:text-blue-800 transition-colors">
-              FlexiTrack AI
+            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+              <img src={logo} alt="FlexiTrack AI" className="h-10 w-auto" />
             </Link>
 
             <div className="flex items-center gap-3">

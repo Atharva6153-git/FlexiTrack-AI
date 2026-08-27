@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Activity, Mail, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import logo from '../assets/logo.svg';
 
 // Friendly messages for Firebase error codes
 const FIREBASE_ERRORS = {
@@ -80,8 +81,8 @@ const Login = () => {
       {/* Minimal header — brand only, no nav links */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
-          <Link to="/" className="text-2xl font-extrabold text-blue-700 tracking-tight hover:text-blue-800 transition-colors">
-            FlexiTrack AI
+          <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <img src={logo} alt="FlexiTrack AI" className="h-10 w-auto" />
           </Link>
         </div>
       </header>
@@ -95,10 +96,7 @@ const Login = () => {
 
             {/* Brand hero strip */}
             <div className="bg-gradient-to-br from-[#0F172A] to-[#1E3A5F] px-8 py-8 text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 mb-4">
-                <Activity size={28} className="text-white" />
-              </div>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">FlexiTrack AI</h1>
+              <img src={logo} alt="FlexiTrack AI" className="h-20 w-auto mx-auto mb-4 rounded-2xl" />
               <p className="text-slate-300 text-sm mt-1 font-medium">AI-Powered Physical Rehabilitation</p>
             </div>
 
